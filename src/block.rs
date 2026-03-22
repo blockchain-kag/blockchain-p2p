@@ -1,28 +1,24 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
-use sha2::{Sha256, Digest};
+
+use crate::transaction::Transaction;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Block {
     pub index: u64,
     pub timestamp: u128,
-    pub transactions: Vec<String>,
+    pub transactions: Vec<Transaction>, // antes Vec<String>
     pub previous_hash: String,
     pub nonce: u64,
     pub hash: String,
 }
 
-// This code create an initial block
-// Then miner.rs change nonce value
+// Block::new() crea el bloque inicial con nonce=0.
+// miner.rs es quien cambia el nonce hasta encontrar un hash válido.
 
 impl Block {
-
-    pub fn new(
-        index: u64,
-        transactions: Vec<String>, // todo: change to Vec<Transaction>
-        previous_hash: String,
-    ) -> Self {
-
+    pub fn new(index: u64, transactions: Vec<Transaction>, previous_hash: String) -> Self {
         let timestamp = Self::current_timestamp();
 
         let mut block = Block {
@@ -35,7 +31,6 @@ impl Block {
         };
 
         block.hash = block.calculate_hash();
-
         block
     }
 
@@ -46,29 +41,28 @@ impl Block {
             .as_millis()
     }
 
-    // This generates a hash SHA256 of block
+    /// Genera el hash SHA-256 del bloque.
+    /// Las transacciones se serializan a JSON para hashing determinístico.
     pub fn calculate_hash(&self) -> String {
+        let transactions_json =
+            serde_json::to_string(&self.transactions).unwrap_or_default();
+
         let data = format!(
-            "{}{}{:?}{}{}",
+            "{}{}{}{}{}",
             self.index,
             self.timestamp,
-            self.transactions,
+            transactions_json,
             self.previous_hash,
             self.nonce
         );
 
         let mut hasher = Sha256::new();
-        hasher.update(data);
-
-        let result = hasher.finalize();
-
-        format!("{:x}", result)
+        hasher.update(data.as_bytes());
+        format!("{:x}", hasher.finalize())
     }
 
-
-    // Then mining, nonce chance so we need to recalculate hash value.
+    /// Recalcula el hash después de que miner.rs cambia el nonce.
     pub fn update_hash(&mut self) {
         self.hash = self.calculate_hash();
     }
 }
-
