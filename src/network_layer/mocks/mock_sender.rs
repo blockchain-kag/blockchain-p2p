@@ -1,4 +1,4 @@
-use super::super::traits::NetworkSender;
+use crate::network_layer::traits::network_sender::NetworkSender;
 
 pub struct MockNetworkSender {
     is_result_correct: bool,

@@ -1,4 +1,4 @@
-use super::super::traits::NetworkReceiver;
+use crate::network_layer::traits::network_receiver::NetworkReceiver;
 
 pub struct MockNetworkReceiver {
     has_received: bool,

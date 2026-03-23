@@ -1,4 +1,6 @@
-use super::super::traits::{NetworkReceiver, NetworkSender};
+use crate::network_layer::traits::{
+    network_receiver::NetworkReceiver, network_sender::NetworkSender,
+};
 
 pub struct Network {
     peers: Vec<String>,
