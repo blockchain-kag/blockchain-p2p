@@ -1,6 +1,4 @@
-use std::default;
-
-use crate::network_layer::traits::{NetworkReceiver, NetworkSender};
+use super::super::traits::{NetworkReceiver, NetworkSender};
 
 pub struct Network {
     peers: Vec<String>,
@@ -47,45 +45,5 @@ impl Network {
             }
         }
         amount_sent
-    }
-}
-
-pub struct MockNetworkSender {
-    is_result_correct: bool,
-}
-
-impl MockNetworkSender {
-    pub fn new(is_result_correct: bool) -> MockNetworkSender {
-        MockNetworkSender { is_result_correct }
-    }
-}
-
-impl NetworkSender for MockNetworkSender {
-    fn send(&self, _: String, _: String) -> Result<(), String> {
-        if self.is_result_correct {
-            Ok(())
-        } else {
-            Err(String::from("Error sending msg"))
-        }
-    }
-}
-
-pub struct MockNetworkReceiver {
-    has_received: bool,
-}
-
-impl MockNetworkReceiver {
-    pub fn new(has_received: bool) -> MockNetworkReceiver {
-        Self { has_received }
-    }
-}
-
-impl NetworkReceiver for MockNetworkReceiver {
-    fn receive(&self) -> Option<(String, String)> {
-        if self.has_received {
-            Some((String::from("sender"), String::from("msg")))
-        } else {
-            None
-        }
     }
 }

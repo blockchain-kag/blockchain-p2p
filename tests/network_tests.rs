@@ -1,4 +1,7 @@
-use blockchain_p2p::network_layer::{MockNetworkReceiver, MockNetworkSender, Network};
+use blockchain_p2p::network_layer::{
+    mocks::{mock_receiver::MockNetworkReceiver, mock_sender::MockNetworkSender},
+    types::network::Network,
+};
 
 #[test]
 fn create_network_test() {
