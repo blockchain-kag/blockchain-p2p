@@ -1,4 +1,3 @@
-pub mod adapters;
 pub mod ports;
 mod tests;
 pub mod types;
