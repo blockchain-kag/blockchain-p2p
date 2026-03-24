@@ -1,4 +1,4 @@
-use crate::network_layer::traits::{
+use crate::network_layer::ports::{
     network_receiver::NetworkReceiver, network_sender::NetworkSender,
 };
 

@@ -1,6 +1,6 @@
 use crate::network_layer::{
     Network,
-    mocks::{mock_receiver::MockNetworkReceiver, mock_sender::MockNetworkSender},
+    adapters::mocks::{mock_receiver::MockNetworkReceiver, mock_sender::MockNetworkSender},
 };
 
 #[test]
