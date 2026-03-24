@@ -1,6 +1,6 @@
-use blockchain_p2p::network_layer::{
+use crate::network_layer::{
+    Network,
     mocks::{mock_receiver::MockNetworkReceiver, mock_sender::MockNetworkSender},
-    types::network::Network,
 };
 
 #[test]
