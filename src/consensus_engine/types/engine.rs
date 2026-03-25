@@ -19,28 +19,50 @@ impl Engine {
 
     // Receive a block from network
     pub fn receive_block(&mut self, block_incoming: Block) {
-        let last_block = self.storage.get_last_block();
+        let last_block_opt = self.storage.get_last_block();
 
-        if !BlockValidator::validate(&block_incoming, &last_block) { return; }
+        match last_block_opt {
+            None => {
+                if !BlockValidator::validate(&block_incoming, None) { return; }
+                self.storage.save(&block_incoming);
+                self.mempool.remove_transactions(&block_incoming.transactions);
+                self.network.broadcast_block(&block_incoming);
+            }
 
-        self.storage.save(&block_incoming);
-        self.mempool.remove_transactions(&block_incoming.transactions);
-        self.network.broadcast_block(&block_incoming);
+            Some(last_block) => {
+                if !BlockValidator::validate(&block_incoming, Some(last_block)) { return; }
+                self.storage.save(&block_incoming);
+                self.mempool.remove_transactions(&block_incoming.transactions);
+                self.network.broadcast_block(&block_incoming);
+            }
+        }
     }
 
     // Create a block (local mining)
     pub fn mine_new_block(&mut self) {
         let txs = self.mempool.get_pending_transactions();
         let last_block = self.storage.get_last_block();
-        let candidate = Block::new(
-            last_block.index + 1,
-            txs.clone(),
-            last_block.hash.clone(),
-        );
+        let candidate = match last_block {
+            None => {
+                Block::new(
+                    0,
+                    txs.clone(),
+                    String::new(),
+                )
+            }
+
+            Some(last_block) => {
+                Block::new(
+                    last_block.index + 1,
+                    txs.clone(),
+                    last_block.hash.clone(),
+                )
+            }
+        };
 
         let mined = self.miner.mine(candidate, self.difficulty);
 
-        if !BlockValidator::validate(&mined, &last_block) { return; }
+        if !BlockValidator::validate(&mined, last_block) { return; }
 
         self.storage.save(&mined);
         self.network.broadcast_block(&mined);

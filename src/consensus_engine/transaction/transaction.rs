@@ -1,5 +1,3 @@
-// todo: seguro podes tirarte el mock aca
-
 use serde::{
    Deserialize, 
    Serialize
