@@ -1,4 +1,5 @@
-pub mod block;
-pub mod blockchain;
-pub mod miner;
-pub mod node;
+mod consensus_engine;
+
+pub fn run() {
+    println!("lib ok");
+}
