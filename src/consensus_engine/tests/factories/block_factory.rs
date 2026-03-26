@@ -1,6 +1,5 @@
 use crate::consensus_engine::block::block::Block;
 use crate::consensus_engine::transaction::transaction::Transaction;
-use crate::consensus_engine::traits::hasher::Sha256Hasher;
 
 pub struct BlockFactory;
 
@@ -13,20 +12,34 @@ impl BlockFactory {
         )
     }
 
-    // fixme
-    pub fn valid_after(previous: &Block) -> Block {
+    pub fn generate_a_correct_block(previous: &Block) -> Block {
+        Block::new(
+            previous.index + 1,
+            vec![],
+            previous.hash.to_string()
+        )
+    }
+
+    pub fn generate_a_block_with_transactions(previous: &Block) -> Block {
+        Block::new(
+            previous.index + 1,
+            Self::generate_random_transactions(),
+            previous.hash.to_string()
+        )
+    }
+
+    fn generate_random_transactions() -> Vec<Transaction> {
         todo!()
     }
 
-
-    pub fn invalid_pow(previous: &Block) -> Block {
-        let mut b = Self::valid_after(previous);
+    pub fn generate_a_block_with_mining_invalid_pow(previous: &Block) -> Block {
+        let mut b = Self::generate_a_correct_block(previous);
         b.hash = "123456".to_string();
         b
     }
 
 
-    pub fn invalid_previous_hash(previous: &Block) -> Block {
+    pub fn generate_a_block_with_an_invalid_previous_hash(previous: &Block) -> Block {
         Block::new(
             previous.index + 1,
             vec![],
@@ -35,11 +48,11 @@ impl BlockFactory {
     }
 
 
-    pub fn chain_of(n: usize) -> Vec<Block> {
+    pub fn generate_a_chain_structurally_correct(n: usize) -> Vec<Block> {
         let mut chain = vec![Self::genesis()];
         for _ in 1..n {
             let last = chain.last().unwrap();
-            chain.push(Self::valid_after(last));
+            chain.push(Self::generate_a_correct_block(last));
         }
         chain
     }

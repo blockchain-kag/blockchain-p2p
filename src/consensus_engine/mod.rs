@@ -1,5 +1,3 @@
-mod mocks;
-mod constants;
 mod miner;
 mod block;
 mod tests;

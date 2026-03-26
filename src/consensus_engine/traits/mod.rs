@@ -1,5 +1,4 @@
 mod transactions;
-mod block;
 pub(crate) mod storage;
 pub (crate) mod network;
 pub (crate) mod mempool;

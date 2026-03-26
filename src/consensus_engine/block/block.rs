@@ -4,10 +4,7 @@ use serde::{
     Serialize
 };
 use chrono::Utc;
-use sha2::{
-    Digest,
-    Sha256
-};
+
 use crate::consensus_engine::traits::hasher::{Hasher, Sha256Hasher};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,10 +19,9 @@ pub struct Block {
 
 impl Block {
     pub fn new(index: u64, transactions: Vec<Transaction>, previous_hash: String) -> Self {
-        let timestamp = Utc::now().timestamp();
         let mut block = Block {
             index,
-            timestamp,
+            timestamp: Utc::now().timestamp(),
             transactions,
             previous_hash,
             hash: String::new(),

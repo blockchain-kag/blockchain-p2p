@@ -20,7 +20,7 @@ impl Miner for BlockMiner {
             block.nonce += 1;
         }
 
-        // println!("Block mined: {}", block.hash);
+        println!("Block mined: {}", block.hash);
         block
     }
 }

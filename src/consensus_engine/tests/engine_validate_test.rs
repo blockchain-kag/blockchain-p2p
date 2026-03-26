@@ -1,9 +1,4 @@
 use crate::consensus_engine::block::block::Block;
-use crate::consensus_engine::constants::constants::{
-    INITIAL_DIGITS,
-    BASIC_DIFFICULTY
-};
-use crate::consensus_engine::transaction::transaction::Transaction;
 
 // todo: make a factory that create random blocks
 // and check all this cases!
