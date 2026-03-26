@@ -20,7 +20,7 @@ impl Storage for MockStorage {
         todo!()
     }
 
-    fn get_chain(&self) -> Vec<Block> {
+    fn get_chain(&self, block: &Block) -> Vec<Block> {
         todo!()
     }
 
@@ -28,7 +28,7 @@ impl Storage for MockStorage {
         todo!()
     }
 
-    fn replace_chain(&self, chain: &Vec<Block>) {
+    fn replace_chain(&self, block: Block, chain: Vec<Block>) -> Vec<Block> {
         todo!()
     }
 }

@@ -16,7 +16,7 @@ impl Network for MockNetwork {
         todo!()
     }
 
-    fn broadcast_chain(&self, blockchain: &[Block]) {
+    fn broadcast_chain(&self, blockchain: Vec<Block>) {
         todo!()
     }
 }
