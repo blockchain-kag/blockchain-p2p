@@ -1,19 +1,22 @@
 use std::{io::Write, net::TcpStream, thread, time::Duration};
 
 use blockchain_p2p::{
-    network_layer::ports::network_receiver::NetworkReceiver,
-    network_layer_adapters::tcp::tcp_receiver::TcpReceiver,
+    network_layer::ports::{network_receiver::NetworkReceiver, network_sender::NetworkSender},
+    network_layer_adapters::tcp::{tcp_receiver::TcpReceiver, tcp_sender::TCPSender},
 };
 
 fn main() {
+    let sender = TCPSender::new();
     let mut receiver = TcpReceiver::new("127.0.0.1:9000");
 
     // Spawn test client
-    thread::spawn(|| {
-        let mut stream = TcpStream::connect("127.0.0.1:9000").unwrap();
-        stream.write_all(b"Hello, server!\n").unwrap();
-        thread::sleep(Duration::from_millis(500)); // small delay
-        stream.write_all(b"Second message\n").unwrap();
+    thread::spawn(move || {
+        let addr = String::from("127.0.0.1:9000");
+        let msg = String::from("Hello, server!\n");
+        sender.send(addr.clone(), msg).unwrap();
+        thread::sleep(Duration::from_millis(75));
+        let msg = String::from("Second message\n");
+        sender.send(addr.clone(), msg).unwrap();
     });
 
     // Read messages from receiver
