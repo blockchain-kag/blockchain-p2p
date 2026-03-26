@@ -1,7 +1,8 @@
-mod miner;
 mod block;
+mod miner;
 mod tests;
 mod traits;
 mod transaction;
-mod types;
+pub mod types;
 mod validation;
+

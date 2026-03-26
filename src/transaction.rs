@@ -11,7 +11,12 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new(from: String, to: String, amount: u64, sig: String) -> Self {
-        Transaction { from, to, amount, sig }
+        Transaction {
+            from,
+            to,
+            amount,
+            sig,
+        }
     }
 
     pub fn tx_id(&self) -> String {
