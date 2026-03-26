@@ -1,3 +1,3 @@
 pub trait NetworkReceiver {
-    fn receive(&self) -> Option<(String, String)>;
+    fn receive(&mut self) -> Option<(String, String)>;
 }

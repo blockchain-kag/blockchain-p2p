@@ -11,7 +11,7 @@ impl MockNetworkReceiver {
 }
 
 impl NetworkReceiver for MockNetworkReceiver {
-    fn receive(&self) -> Option<(String, String)> {
+    fn receive(&mut self) -> Option<(String, String)> {
         if self.has_received {
             Some((String::from("sender"), String::from("msg")))
         } else {

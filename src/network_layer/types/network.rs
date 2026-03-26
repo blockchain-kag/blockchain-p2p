@@ -36,7 +36,7 @@ impl Network {
     pub fn send_msg(&self, identifier: String, msg: String) -> Result<(), String> {
         self.sender.send(identifier, msg)
     }
-    pub fn receive_msg(&self) -> Option<(String, String)> {
+    pub fn receive_msg(&mut self) -> Option<(String, String)> {
         self.receiver.receive()
     }
     pub fn broadcast(&self, msg: String) -> usize {
