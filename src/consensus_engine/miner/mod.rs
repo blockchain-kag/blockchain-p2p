@@ -1,1 +1,1 @@
-mod miner;
+pub (crate) mod miner;
