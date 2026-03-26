@@ -36,10 +36,6 @@ impl NetworkSender for TCPSender {
             .write_all(msg.as_bytes())
             .map_err(|e| format!("Send error: {}", e))?;
 
-        if msg == "PING" {
-            Ok(String::from("PONG"))
-        } else {
-            Err(String::from("INVALID MSG"))
-        }
+        Ok(String::from("Sent"))
     }
 }

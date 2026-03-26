@@ -73,17 +73,20 @@ fn spawn_new_peers_listener_thread(
     });
 }
 
-fn spawn_peer_reader_thread(stream: TcpStream, addr: SocketAddr, tx: Sender<(SocketAddr, String)>) {
+fn spawn_peer_reader_thread(
+    mut stream: TcpStream,
+    addr: SocketAddr,
+    tx: Sender<(SocketAddr, String)>,
+) {
     thread::spawn(move || {
-        let mut buffer = [0u8; 1024];
-        let mut stream = stream;
+        let mut read_buf = [0u8; 1024];
+        let mut buffer: Vec<u8> = Vec::new(); // ← persistent buffer
 
         loop {
-            match stream.read(&mut buffer) {
+            match stream.read(&mut read_buf) {
                 Ok(0) => break,
                 Ok(n) => {
-                    let msg = String::from_utf8_lossy(&buffer[..n]).to_string();
-                    tx.send((addr, msg)).ok();
+                    process_incoming_bytes(addr, &tx, &read_buf, &mut buffer, n);
                 }
                 Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                     sleep(Duration::from_millis(10));
@@ -92,6 +95,24 @@ fn spawn_peer_reader_thread(stream: TcpStream, addr: SocketAddr, tx: Sender<(Soc
             }
         }
     });
+}
+
+fn process_incoming_bytes(
+    addr: SocketAddr,
+    tx: &Sender<(SocketAddr, String)>,
+    read_buf: &[u8],
+    buffer: &mut Vec<u8>,
+    n: usize,
+) {
+    buffer.extend_from_slice(&read_buf[..n]);
+
+    while let Some(pos) = buffer.iter().position(|&b| b == b'\n') {
+        let line: Vec<u8> = buffer.drain(..=pos).collect();
+
+        let msg = String::from_utf8_lossy(&line[..line.len() - 1]).to_string();
+
+        tx.send((addr, msg)).ok();
+    }
 }
 
 impl NetworkReceiver for TcpReceiver {

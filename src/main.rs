@@ -14,7 +14,7 @@ fn main() {
         let addr = String::from("127.0.0.1:9000");
         let msg = String::from("Hello, server!\n");
         sender.send(addr.clone(), msg).unwrap();
-        thread::sleep(Duration::from_millis(75));
+        thread::sleep(Duration::from_millis(5));
         let msg = String::from("Second message\n");
         sender.send(addr.clone(), msg).unwrap();
     });
