@@ -120,6 +120,20 @@ fn main() {
                 network.lock().unwrap().add_peer(addr.to_string());
                 println!("Peer agregado: {}", addr);
             }
+            ["peers"] => {
+                let net = network.lock().unwrap();
+                let list = net.get_peers();
+                if list.is_empty() {
+                    println!("Sin peers conectados");
+                } else {
+                    println!("Peers ({}):", list.len());
+                    for p in list { println!("  {}", p); }
+                }
+            }
+            ["sync"] => {
+                engine.lock().unwrap().broadcast_current_chain();
+                println!("Cadena enviada a todos los peers");
+            }
             ["quit"] => {
                 println!("Saliendo...");
                 break;

@@ -60,6 +60,13 @@ impl Engine {
         self.mempool.remove_transactions(&txs);
     }
 
+    pub fn broadcast_current_chain(&self) {
+        if let Some(last) = self.storage.get_last_block() {
+            let chain = self.storage.get_chain(&last);
+            self.network.broadcast_chain(chain);
+        }
+    }
+
     pub fn receive_chain(&mut self, block: Block, chain: Vec<Block>) {
         let local_chain = self.storage.get_chain(&block);
         if !ChainValidator::validate(&chain) {

@@ -39,6 +39,10 @@ impl Network {
     pub fn receive_msg(&mut self) -> Option<(String, String)> {
         self.receiver.receive()
     }
+    pub fn get_peers(&self) -> &Vec<String> {
+        &self.peers
+    }
+
     pub fn broadcast(&self, msg: String) -> usize {
         let mut amount_sent = 0;
         for peer_id in &self.peers {
