@@ -6,7 +6,9 @@ use blockchain_p2p::{
 };
 
 fn main() {
-    let sender = TCPSender::new();
+    let sender = TCPSender {
+        peers: Mutex::new(HashMap::new()),
+    };
     let mut receiver = TcpReceiver::new("127.0.0.1:9000");
 
     // Spawn test client
