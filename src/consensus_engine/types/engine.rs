@@ -33,11 +33,13 @@ impl Engine {
     pub fn receive_block(&mut self, block_incoming: Block) {
         let last_block = self.storage.get_last_block();
         if !BlockValidator::validate(&block_incoming, last_block.as_ref()) {
+            println!("[warn] Bloque #{} rechazado — necesitás sincronizar (el otro nodo debe escribir 'sync')", block_incoming.index);
             return;
         }
         self.storage.save(&block_incoming);
         self.mempool.remove_transactions(&block_incoming.transactions);
         self.network.broadcast_block(&block_incoming);
+        println!("[ok] Bloque #{} aceptado y guardado", block_incoming.index);
     }
 
     pub fn mine_new_block(&mut self) {
