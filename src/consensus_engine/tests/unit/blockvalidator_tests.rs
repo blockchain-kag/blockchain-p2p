@@ -20,13 +20,13 @@ fn validator_should_reject_non_genesis_when_previous_is_none() {
 fn reject_block_with_wrong_previous_hash(){
     let b1 = BlockFactory::genesis();
     let b2 = BlockFactory::generate_a_block_with_an_invalid_previous_hash(&b1);
-    assert!(BlockValidator::validate(&b2, Some(&b1)));
+    assert!(!BlockValidator::validate(&b2, Some(&b1)));
 }
 
 #[test]
 fn reject_block_with_invalid_pow(){
     let b1 = BlockFactory::genesis();
     let b2 = BlockFactory::generate_a_block_with_mining_invalid_pow(&b1);
-    assert!(BlockValidator::validate(&b2, Some(&b1)));
+    assert!(!BlockValidator::validate(&b2, Some(&b1)));
 }
 

@@ -1,4 +1,4 @@
-use crate::consensus_engine::block::block::Block;
+use crate::block::Block;
 use crate::consensus_engine::traits::network::Network;
 
 pub struct MockNetwork {
@@ -12,11 +12,6 @@ impl MockNetwork {
 }
 
 impl Network for MockNetwork {
-    fn broadcast_block(&self, block: &Block) {
-        todo!()
-    }
-
-    fn broadcast_chain(&self, blockchain: Vec<Block>) {
-        todo!()
-    }
+    fn broadcast_block(&self, _block: &Block) {}
+    fn broadcast_chain(&self, _chain: Vec<Block>) {}
 }

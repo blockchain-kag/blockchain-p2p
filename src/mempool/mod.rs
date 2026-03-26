@@ -113,6 +113,24 @@ impl MempoolTrait for Mempool {
     }
 }
 
+impl crate::consensus_engine::traits::mempool::Mempool for crate::mempool::Mempool {
+    fn get_pending_transactions(&self) -> Vec<Transaction> {
+        self.transactions.lock().unwrap().values().cloned().collect()
+    }
+
+    fn get_transactions(&self) -> Vec<Transaction> {
+        self.transactions.lock().unwrap().values().cloned().collect()
+    }
+
+    fn remove_transactions(&self, txs: &Vec<Transaction>) {
+        self.remove_transactions(txs.as_slice());
+    }
+
+    fn add_transaction_to_mempool(&self, tx: &Transaction) {
+        let _ = self.add_transaction(tx.clone());
+    }
+}
+
 impl Default for Mempool {
     fn default() -> Self {
         Self::new()

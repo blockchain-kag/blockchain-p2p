@@ -12,7 +12,7 @@ fn miner_should_generate_a_valid_pow_hash() {
     let miner = BlockMiner;
     let mined = miner.mine(block, 3); // dificultad chica para rápido testeo
 
-    assert_eq!(mined.hash, "000".to_string()); // fixme-> start_with?
+    assert!(mined.hash.starts_with("000"));
 }
 
 #[test]

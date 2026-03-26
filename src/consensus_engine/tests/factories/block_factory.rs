@@ -29,7 +29,10 @@ impl BlockFactory {
     }
 
     fn generate_random_transactions() -> Vec<Transaction> {
-        todo!()
+        vec![
+            Transaction::new("0xAlice".into(), "0xBob".into(), 50, "sig1".into()),
+            Transaction::new("0xBob".into(), "0xCarlos".into(), 25, "sig2".into()),
+        ]
     }
 
     pub fn generate_a_block_with_mining_invalid_pow(previous: &Block) -> Block {

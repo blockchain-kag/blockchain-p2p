@@ -1,9 +1,7 @@
-use core::error;
 use std::{
     collections::HashMap,
     io::Write,
     net::{SocketAddr, TcpStream},
-    str::FromStr,
     sync::Mutex,
 };
 
@@ -28,9 +26,15 @@ impl NetworkSender for TCPSender {
         let socket_addr = identifier
             .parse::<SocketAddr>()
             .map_err(|e| format!("Invalid peer address: {} ({})", identifier, e))?;
-        let stream = peers
-            .entry(socket_addr)
-            .or_insert_with(|| TcpStream::connect(socket_addr).expect("connection failed"));
+
+        let stream = match peers.entry(socket_addr) {
+            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                let conn = TcpStream::connect(socket_addr)
+                    .map_err(|e| format!("Connection failed to {}: {}", socket_addr, e))?;
+                e.insert(conn)
+            }
+        };
 
         stream
             .write_all(msg.as_bytes())

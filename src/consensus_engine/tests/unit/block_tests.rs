@@ -20,9 +20,10 @@ fn block_should_have_a_correct_previous_hash(){
 
 #[test]
 fn new_block_check_timestamp(){
-    let before = chrono::Utc::now().timestamp();
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let before = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let block = Block::new(0, vec![], "".to_string());
-    let after = chrono::Utc::now().timestamp();
+    let after = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
 
     assert!(block.timestamp >= before && block.timestamp <= after);
 }

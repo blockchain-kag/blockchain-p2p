@@ -1,5 +1,5 @@
+use crate::transaction::Transaction;
 use crate::consensus_engine::traits::mempool::Mempool;
-use crate::consensus_engine::transaction::transaction::Transaction;
 
 pub struct MockMempool {
     pub txs: Vec<Transaction>,
@@ -13,18 +13,14 @@ impl MockMempool {
 
 impl Mempool for MockMempool {
     fn get_pending_transactions(&self) -> Vec<Transaction> {
-        todo!()
+        self.txs.clone()
     }
 
     fn get_transactions(&self) -> Vec<Transaction> {
-        todo!()
+        self.txs.clone()
     }
 
-    fn remove_transactions(&self, tx: &Vec<Transaction>) {
-        todo!()
-    }
+    fn remove_transactions(&self, _tx: &Vec<Transaction>) {}
 
-    fn add_transaction_to_mempool(&self, tx: &Transaction) {
-        todo!()
-    }
+    fn add_transaction_to_mempool(&self, _tx: &Transaction) {}
 }

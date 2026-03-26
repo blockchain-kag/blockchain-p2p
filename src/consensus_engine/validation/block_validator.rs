@@ -1,26 +1,20 @@
-use crate::consensus_engine::block::block::Block;
+use crate::block::Block;
 
 pub struct BlockValidator;
 
-use crate::consensus_engine::traits::hasher::{
-    Hasher,
-    Sha256Hasher
-};
-
-
 impl BlockValidator {
     pub fn validate(current: &Block, previous: Option<&Block>) -> bool {
-        if previous.is_none() {
-            return current.index == 0
-                && current.previous_hash.is_empty()
-                && current.hash == Sha256Hasher::hash_block(current);
+        match previous {
+            None => {
+                current.index == 0
+                    && current.previous_hash.is_empty()
+                    && current.hash == current.calculate_hash()
+            }
+            Some(previous) => {
+                current.hash == current.calculate_hash()
+                    && current.previous_hash == previous.hash
+                    && current.index == previous.index + 1
+            }
         }
-
-        let previous = previous.unwrap();
-
-        if current.hash != Sha256Hasher::hash_block(current) { return false; }
-        if current.previous_hash != previous.hash { return false; }
-        if current.index != previous.index + 1 { return false; }
-        true
     }
 }

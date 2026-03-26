@@ -1,6 +1,6 @@
-use crate::consensus_engine::block::block::Block;
+use crate::block::Block;
 
-pub trait Network {
-    fn broadcast_block(&self, blockchain: &Block);
-    fn broadcast_chain(&self, blockchain: Vec<Block>);
+pub trait Network: Send {
+    fn broadcast_block(&self, block: &Block);
+    fn broadcast_chain(&self, chain: Vec<Block>);
 }
