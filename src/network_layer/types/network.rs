@@ -33,7 +33,7 @@ impl Network {
     pub fn remove_peer(&mut self, identifier: String) {
         self.peers.retain(|peer| *peer != identifier);
     }
-    pub fn send_msg(&self, identifier: String, msg: String) -> Result<(), String> {
+    pub fn send_msg(&self, identifier: String, msg: String) -> Result<String, String> {
         self.sender.send(identifier, msg)
     }
     pub fn receive_msg(&mut self) -> Option<(String, String)> {

@@ -1,4 +1,4 @@
-use std::{io::Write, net::TcpStream, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use blockchain_p2p::{
     network_layer::ports::{network_receiver::NetworkReceiver, network_sender::NetworkSender},
@@ -6,9 +6,7 @@ use blockchain_p2p::{
 };
 
 fn main() {
-    let sender = TCPSender {
-        peers: Mutex::new(HashMap::new()),
-    };
+    let sender = TCPSender::new();
     let mut receiver = TcpReceiver::new("127.0.0.1:9000");
 
     // Spawn test client

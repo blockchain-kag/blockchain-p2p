@@ -1,3 +1,4 @@
+use core::error;
 use std::{
     collections::HashMap,
     io::Write,
@@ -21,7 +22,7 @@ impl TCPSender {
 }
 
 impl NetworkSender for TCPSender {
-    fn send(&self, identifier: String, msg: String) -> Result<(), String> {
+    fn send(&self, identifier: String, msg: String) -> Result<String, String> {
         let mut peers = self.peers.lock().unwrap();
 
         let socket_addr = identifier
@@ -35,6 +36,10 @@ impl NetworkSender for TCPSender {
             .write_all(msg.as_bytes())
             .map_err(|e| format!("Send error: {}", e))?;
 
-        Ok(())
+        if msg == "PING" {
+            Ok(String::from("PONG"))
+        } else {
+            Err(String::from("INVALID MSG"))
+        }
     }
 }
