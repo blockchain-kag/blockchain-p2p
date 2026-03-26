@@ -64,6 +64,13 @@ impl Mempool {
         self.transactions.lock().unwrap().len()
     }
 
+    pub fn remove_transactions(&self, txs: &[Transaction]) {
+        let mut pool = self.transactions.lock().unwrap();
+        for tx in txs {
+            pool.remove(&tx.tx_id());
+        }
+    }
+
     pub fn clear_invalid_transactions(&self) {
         self.transactions.lock().unwrap().retain(|_, tx| Self::validate(tx).is_ok());
     }
@@ -98,10 +105,7 @@ impl MempoolTrait for Mempool {
     }
 
     fn remove_transactions(&self, txs: &Vec<Transaction>) {
-        let mut pool = self.transactions.lock().unwrap();
-        for tx in txs {
-            pool.remove(&tx.tx_id());
-        }
+        self.remove_transactions(txs.as_slice());
     }
 
     fn add_transaction_to_mempool(&self, tx: &Transaction) {
