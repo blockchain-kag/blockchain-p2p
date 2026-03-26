@@ -9,7 +9,7 @@ fn tx(from: &str, to: &str, amount: u64, sig: &str) -> Transaction {
 
 #[test]
 fn agrega_transaccion_valida() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let result = pool.add_transaction(tx("0xA", "0xB", 50, "sig1"));
     assert!(result.is_ok());
     assert_eq!(pool.get_size(), 1);
@@ -17,42 +17,42 @@ fn agrega_transaccion_valida() {
 
 #[test]
 fn rechaza_from_vacio() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let err = pool.add_transaction(tx("", "0xB", 50, "sig1")).unwrap_err();
     assert!(matches!(err, MempoolError::InvalidTransaction(_)));
 }
 
 #[test]
 fn rechaza_to_vacio() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let err = pool.add_transaction(tx("0xA", "", 50, "sig1")).unwrap_err();
     assert!(matches!(err, MempoolError::InvalidTransaction(_)));
 }
 
 #[test]
 fn rechaza_from_igual_a_to() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let err = pool.add_transaction(tx("0xA", "0xA", 50, "sig1")).unwrap_err();
     assert!(matches!(err, MempoolError::InvalidTransaction(_)));
 }
 
 #[test]
 fn rechaza_monto_cero() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let err = pool.add_transaction(tx("0xA", "0xB", 0, "sig1")).unwrap_err();
     assert!(matches!(err, MempoolError::InvalidTransaction(_)));
 }
 
 #[test]
 fn rechaza_firma_vacia() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let err = pool.add_transaction(tx("0xA", "0xB", 50, "")).unwrap_err();
     assert!(matches!(err, MempoolError::InvalidTransaction(_)));
 }
 
 #[test]
 fn rechaza_transaccion_duplicada() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     pool.add_transaction(tx("0xA", "0xB", 50, "sig1")).unwrap();
 
     let err = pool.add_transaction(tx("0xA", "0xB", 50, "sig1")).unwrap_err();
@@ -62,7 +62,7 @@ fn rechaza_transaccion_duplicada() {
 
 #[test]
 fn rechaza_cuando_mempool_esta_llena() {
-    let mut pool = Mempool::with_max_size(2);
+    let pool = Mempool::with_max_size(2);
     pool.add_transaction(tx("0xA", "0xB", 10, "s1")).unwrap();
     pool.add_transaction(tx("0xA", "0xB", 20, "s2")).unwrap();
 
@@ -74,7 +74,7 @@ fn rechaza_cuando_mempool_esta_llena() {
 
 #[test]
 fn get_transactions_respeta_el_limite() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     for i in 1..=5u64 {
         pool.add_transaction(tx("0xA", "0xB", i, &format!("sig{}", i))).unwrap();
     }
@@ -85,7 +85,7 @@ fn get_transactions_respeta_el_limite() {
 
 #[test]
 fn get_transactions_no_elimina_de_la_mempool() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     pool.add_transaction(tx("0xA", "0xB", 50, "sig1")).unwrap();
 
     let _ = pool.get_transactions_for_block(10);
@@ -97,7 +97,7 @@ fn get_transactions_no_elimina_de_la_mempool() {
 
 #[test]
 fn remove_transactions_elimina_las_incluidas_en_el_bloque() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     let t1 = tx("0xA", "0xB", 50, "sig1");
     let t2 = tx("0xA", "0xC", 30, "sig2");
 
@@ -105,17 +105,17 @@ fn remove_transactions_elimina_las_incluidas_en_el_bloque() {
     pool.add_transaction(t2.clone()).unwrap();
     assert_eq!(pool.get_size(), 2);
 
-    pool.remove_transactions(&[t1]);
+    pool.remove_transactions(&vec![t1]);
 
     assert_eq!(pool.get_size(), 1);
 }
 
 #[test]
 fn remove_transactions_ignora_las_que_no_estaban() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
     pool.add_transaction(tx("0xA", "0xB", 50, "sig1")).unwrap();
 
-    pool.remove_transactions(&[tx("0xX", "0xY", 99, "sigX")]);
+    pool.remove_transactions(&vec![tx("0xX", "0xY", 99, "sigX")]);
 
     assert_eq!(pool.get_size(), 1);
 }
@@ -124,7 +124,7 @@ fn remove_transactions_ignora_las_que_no_estaban() {
 
 #[test]
 fn flujo_completo_networking_mempool_consensus() {
-    let mut pool = Mempool::new();
+    let pool = Mempool::new();
 
     let t1 = tx("0xRocio", "0xPedro", 100, "sig_r1");
     let t2 = tx("0xPedro", "0xJuan", 50, "sig_p1");
