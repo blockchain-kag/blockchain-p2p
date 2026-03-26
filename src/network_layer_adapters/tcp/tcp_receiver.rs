@@ -1,8 +1,7 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     io::{ErrorKind, Read},
     net::{SocketAddr, TcpListener, TcpStream},
-    ops::ControlFlow,
     sync::{
         Arc, Mutex, Weak,
         mpsc::{Receiver, Sender, channel},
@@ -13,7 +12,7 @@ use std::{
 
 use crate::network_layer::ports::network_receiver::NetworkReceiver;
 
-struct TcpReceiver {
+pub struct TcpReceiver {
     listener: Arc<TcpListener>,
     peers: Arc<Mutex<HashMap<SocketAddr, TcpStream>>>,
     rx: Receiver<(SocketAddr, String)>,
