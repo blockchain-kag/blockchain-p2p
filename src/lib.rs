@@ -1,6 +1,5 @@
 pub mod block;
-pub mod blockchain;
 pub mod mempool;
-pub mod miner;
-pub mod node;
+pub mod network_layer;
+pub mod network_layer_adapters;
 pub mod transaction;
