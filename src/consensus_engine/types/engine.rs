@@ -70,14 +70,14 @@ impl Engine {
     }
 
     // Receive a chain from network
-    pub fn receive_chain(&mut self, chain: Vec<Block>) {
-        let local_chain = self.storage.get_chain();
+    pub fn receive_chain(&mut self, block: Block, chain: Vec<Block>) {
+        let local_chain = self.storage.get_chain(&block);
 
         if !ChainValidator::validate(&chain) { return; }
 
         if chain.len() > local_chain.len() {
-            self.storage.replace_chain(&chain);
-            self.network.broadcast_chain(&chain);
+            let new_chain = self.storage.replace_chain(block, chain);
+            self.network.broadcast_chain(new_chain);
         }
     }
 

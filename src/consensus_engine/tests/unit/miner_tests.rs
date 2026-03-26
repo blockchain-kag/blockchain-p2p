@@ -1,5 +1,6 @@
 use crate::consensus_engine::miner::miner::BlockMiner;
 use crate::consensus_engine::tests::factories::block_factory::BlockFactory;
+use crate::consensus_engine::traits::hasher::{Hasher, Sha256Hasher};
 use crate::consensus_engine::traits::miner::Miner;
 use crate::consensus_engine::validation::block_validator::BlockValidator;
 
@@ -20,10 +21,10 @@ fn miner_should_increment_nonce_until_valid_pow() {
     let block = BlockFactory::generate_a_correct_block(&prev);
 
     let miner = BlockMiner;
-    // fix this ownership problem FIXME!
-    // let mined = miner.mine(block, 3); // other option block.clone() but doesn't work
 
-    // assert!(mined.nonce > block.nonce);
+
+    let mined = miner.mine(block, 3); // other option block.clone() but doesn't work
+    assert!(mined.nonce > block.nonce);
 }
 
 
@@ -31,11 +32,10 @@ fn miner_should_increment_nonce_until_valid_pow() {
 fn miner_should_change_hash() {
     let prev = BlockFactory::genesis();
     let block = BlockFactory::generate_a_correct_block(&prev);
-
     let miner = BlockMiner;
-    // let mined = miner.mine(block.clone(), 3);
+    let mined = miner.mine(block, 3);
 
-    // assert_ne!(mined.hash, block.hash);
+    assert_ne!(mined.hash, block.hash);
 }
 
 #[test]
@@ -56,9 +56,9 @@ fn miner_should_not_modify_previous_hash() {
     let block = BlockFactory::generate_a_correct_block(&prev);
 
     let miner = BlockMiner;
-    // let mined = miner.mine(block.clone(), 3);
+    let mined = miner.mine(block.clone(), 3);
 
-    // assert_eq!(mined.previous_hash, block.previous_hash);
+    assert_eq!(mined.previous_hash, block.previous_hash);
 }
 
 
@@ -70,8 +70,8 @@ fn miner_should_produce_hash_matching_recalculated_hash() {
     let miner = BlockMiner;
     let mined = miner.mine(block, 3);
 
-    // let recalculated = Sha256Hasher::hash_block(&mined);
+    let recalculated = Sha256Hasher::hash_block(&mined);
 
-    // assert_eq!(recalculated, mined.hash);
+    assert_eq!(recalculated, mined.hash);
 }
 
