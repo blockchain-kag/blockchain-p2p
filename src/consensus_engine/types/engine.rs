@@ -1,8 +1,8 @@
 use crate::consensus_engine::block::block::Block;
-use crate::consensus_engine::traits::mempool::Mempool;
+use crate::consensus_engine::traits::mempool::{self, Mempool};
 use crate::consensus_engine::traits::miner::Miner;
-use crate::consensus_engine::traits::network::Network;
-use crate::consensus_engine::traits::storage::Storage;
+use crate::consensus_engine::traits::network::{self, Network};
+use crate::consensus_engine::traits::storage::{self, Storage};
 use crate::consensus_engine::validation::block_validator::BlockValidator;
 use crate::consensus_engine::validation::chain_validator::ChainValidator;
 
@@ -14,25 +14,43 @@ pub struct Engine {
     difficulty: usize,
 }
 
-
 impl Engine {
-
+    pub fn new(
+        storage: Box<dyn Storage>,
+        network: Box<dyn Network>,
+        mempool: Box<dyn Mempool>,
+        miner: Box<dyn Miner>,
+    ) -> Self {
+        Self {
+            storage,
+            network,
+            mempool,
+            miner,
+            difficulty: 3,
+        }
+    }
     // Receive a block from network
     pub fn receive_block(&mut self, block_incoming: Block) {
         let last_block_opt = self.storage.get_last_block();
 
         match last_block_opt {
             None => {
-                if !BlockValidator::validate(&block_incoming, None) { return; }
+                if !BlockValidator::validate(&block_incoming, None) {
+                    return;
+                }
                 self.storage.save(&block_incoming);
-                self.mempool.remove_transactions(&block_incoming.transactions);
+                self.mempool
+                    .remove_transactions(&block_incoming.transactions);
                 self.network.broadcast_block(&block_incoming);
             }
 
             Some(last_block) => {
-                if !BlockValidator::validate(&block_incoming, Some(last_block)) { return; }
+                if !BlockValidator::validate(&block_incoming, Some(last_block)) {
+                    return;
+                }
                 self.storage.save(&block_incoming);
-                self.mempool.remove_transactions(&block_incoming.transactions);
+                self.mempool
+                    .remove_transactions(&block_incoming.transactions);
                 self.network.broadcast_block(&block_incoming);
             }
         }
@@ -43,26 +61,18 @@ impl Engine {
         let txs = self.mempool.get_pending_transactions();
         let last_block = self.storage.get_last_block();
         let candidate = match last_block {
-            None => {
-                Block::new(
-                    0,
-                    txs.clone(),
-                    String::new(),
-                )
-            }
+            None => Block::new(0, txs.clone(), String::new()),
 
             Some(last_block) => {
-                Block::new(
-                    last_block.index + 1,
-                    txs.clone(),
-                    last_block.hash.clone(),
-                )
+                Block::new(last_block.index + 1, txs.clone(), last_block.hash.clone())
             }
         };
 
         let mined = self.miner.mine(candidate, self.difficulty);
 
-        if !BlockValidator::validate(&mined, last_block) { return; }
+        if !BlockValidator::validate(&mined, last_block) {
+            return;
+        }
 
         self.storage.save(&mined);
         self.network.broadcast_block(&mined);
@@ -73,12 +83,14 @@ impl Engine {
     pub fn receive_chain(&mut self, block: Block, chain: Vec<Block>) {
         let local_chain = self.storage.get_chain(&block);
 
-        if !ChainValidator::validate(&chain) { return; }
+        if !ChainValidator::validate(&chain) {
+            return;
+        }
 
         if chain.len() > local_chain.len() {
             let new_chain = self.storage.replace_chain(block, chain);
             self.network.broadcast_chain(new_chain);
         }
     }
-
 }
+

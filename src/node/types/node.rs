@@ -1,21 +1,21 @@
-use crate::{
-    consensus_engine::types::engine::Engine,
-    mempool::Mempool,
-    network_layer::{self, Network},
-};
+use crate::{consensus_engine::types::engine::Engine, mempool::Mempool, network_layer::Network};
 
-struct Node {
+pub struct Node {
     network_layer: Network,
     mempool: Mempool,
-    consensus_engine: Engine,
 }
 
 impl Node {
-    fn new(network_layer: Network, mempool: Mempool, engine: Engine) -> Self {
+    pub fn new(mut network_layer: Network, mempool: Mempool) -> Self {
+        network_layer.add_peer(String::from("172.22.48.23:8000"));
+        network_layer.add_peer(String::from("172.22.32.200:8000"));
         Self {
             network_layer,
             mempool,
-            consensus_engine: engine,
         }
+    }
+
+    pub fn broadcast(&self, msg: String) -> usize {
+        self.network_layer.broadcast(msg)
     }
 }
