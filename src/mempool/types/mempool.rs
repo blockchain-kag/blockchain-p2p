@@ -41,7 +41,7 @@ where
 {
     fn default() -> Self {
         Self {
-            transactions: VecDeque::new(),
+            transactions: VecDeque::default(),
         }
     }
 }
