@@ -1,17 +1,45 @@
-use crate::mempool::ports::{signing_key::SigningKey, verifying_key::VerifyingKey};
+use crate::{
+    consensus_engine::ports::hasher::Hasher,
+    mempool::ports::{
+        signing_key::SigningKey,
+        verifying_key::{Signature, VerifyingKey},
+    },
+};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Hash(pub [u8; 32]);
 
+#[derive(Serialize, Deserialize)]
+struct TxData<VK> {
+    prev_tx_hash: Hash,
+    from: VK,
+    to: VK,
+    amount: u64,
+}
+
+impl<VK> TxData<VK>
+where
+    VK: VerifyingKey,
+{
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        bytes.extend_from_slice(&self.prev_tx_hash.0);
+        bytes.extend_from_slice(self.from.as_bytes());
+        bytes.extend_from_slice(self.to.as_bytes());
+        bytes.extend_from_slice(&self.amount.to_be_bytes());
+
+        bytes
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Tx<VK>
 where
     VK: VerifyingKey + Clone,
 {
-    prev_tx_hash: Hash,
-    to: VK,
-    from: VK,
+    data: TxData<VK>,
     signature: VK::Signature,
 }
 
@@ -19,26 +47,42 @@ impl<VK> Tx<VK>
 where
     VK: VerifyingKey + Clone,
 {
-    pub fn new_signed<SK>(prev_tx_hash: Hash, from: VK, to: VK, sk: &SK) -> Self
+    pub fn new_signed<SK>(
+        prev_tx_hash: Hash,
+        from: VK,
+        to: VK,
+        amount: u64,
+        sk: &SK,
+        hasher: &dyn Hasher,
+    ) -> Self
     where
         SK: SigningKey<Signature = VK::Signature, VerifyingKey = VK>,
     {
-        let msg = Self::msg(&prev_tx_hash, &to);
-        let signature = sk.sign(&msg.0);
-
-        Self {
+        let data = TxData {
             prev_tx_hash,
             to,
             from,
-            signature,
-        }
+            amount,
+        };
+        let msg = Self::msg(hasher, &data);
+        let signature = sk.sign(&msg.0);
+
+        Self { data, signature }
     }
-    fn msg(prev_tx_hash: &Hash, to: &VK) -> Hash {
-        let mut hasher = Sha256::new();
-        hasher.update(prev_tx_hash.0);
 
-        hasher.update(to.as_bytes());
+    pub fn verify(&self, hasher: &dyn Hasher) -> bool {
+        let msg = Self::msg(hasher, &self.data);
+        self.data.from.verify(&msg.0, &self.signature)
+    }
 
-        Hash(hasher.finalize().into())
+    fn msg(hasher: &dyn Hasher, data: &TxData<VK>) -> Hash {
+        let bytes = data.to_bytes();
+        hasher.hash(&bytes)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.data.to_bytes();
+        bytes.extend_from_slice(self.signature.to_bytes().as_slice());
+        bytes
     }
 }
