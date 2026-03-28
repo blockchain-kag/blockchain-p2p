@@ -1,9 +1,6 @@
 use crate::{
+    common::ports::{signature::Signature, signing_key::SigningKey, verifying_key::VerifyingKey},
     consensus_engine::ports::hasher::Hasher,
-    mempool::ports::{
-        signing_key::SigningKey,
-        verifying_key::{Signature, VerifyingKey},
-    },
 };
 use serde::{Deserialize, Serialize};
 

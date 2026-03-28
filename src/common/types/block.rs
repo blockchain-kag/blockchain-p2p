@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    consensus_engine::{ports::hasher::Hasher, types::tx::Tx},
-    mempool::types::tx::Hash,
+    common::{
+        ports::verifying_key::VerifyingKey,
+        types::tx::{Hash, Tx},
+    },
+    consensus_engine::ports::hasher::Hasher,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -11,21 +14,26 @@ pub struct BlockHeader {
     pub nonce: u64,
     pub merkle_root: Hash,
 }
-
 #[derive(Serialize, Deserialize)]
-pub struct Block {
+pub struct Block<VK>
+where
+    VK: VerifyingKey + Clone,
+{
     pub header: BlockHeader,
-    pub txs: Vec<Tx>,
+    pub txs: Vec<Tx<VK>>,
 }
 
-impl Block {
+impl<VK> Block<VK>
+where
+    VK: VerifyingKey + Clone,
+{
     pub fn new_generating_merkle_root(
         nonce: u64,
-        txs: Vec<Tx>,
+        txs: Vec<Tx<VK>>,
         prev_hash: Hash,
-        hasher: Box<dyn Hasher>,
+        hasher: &dyn Hasher,
     ) -> Self {
-        let merkle_root = Self::generate_merkle_root(hasher, txs.clone());
+        let merkle_root = Self::generate_merkle_root(hasher, &txs);
         Block {
             header: BlockHeader {
                 prev_hash,
@@ -36,7 +44,7 @@ impl Block {
         }
     }
 
-    pub fn new(nonce: u64, txs: Vec<Tx>, prev_hash: Hash, merkle_root: Hash) -> Self {
+    pub fn new(nonce: u64, txs: Vec<Tx<VK>>, prev_hash: Hash, merkle_root: Hash) -> Self {
         Block {
             header: BlockHeader {
                 prev_hash,
@@ -47,11 +55,8 @@ impl Block {
         }
     }
 
-    fn generate_merkle_root(hasher: Box<dyn Hasher>, txs: Vec<Tx>) -> Hash {
-        let mut hashes: Vec<Hash> = txs
-            .into_iter()
-            .map(|tx| hasher.hash(&tx.to_bytes()))
-            .collect();
+    fn generate_merkle_root(hasher: &dyn Hasher, txs: &[Tx<VK>]) -> Hash {
+        let mut hashes: Vec<Hash> = txs.iter().map(|tx| hasher.hash(&tx.to_bytes())).collect();
 
         if hashes.is_empty() {
             return hasher.hash(&[]);

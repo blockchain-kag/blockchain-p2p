@@ -1,4 +1,4 @@
-use crate::mempool::ports::verifying_key::VerifyingKey;
+use crate::common::ports::verifying_key::VerifyingKey;
 
 pub trait SigningKey {
     type Signature;

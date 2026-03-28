@@ -1,19 +1,26 @@
+use crate::common::ports::verifying_key::VerifyingKey;
+use crate::common::types::block::Block;
+use crate::common::types::tx::Tx;
 use crate::consensus_engine::ports::block_validator::BlockValidator;
 use crate::consensus_engine::ports::hasher::Hasher;
 use crate::consensus_engine::ports::miner::Miner;
-use crate::consensus_engine::types::block::Block;
-use crate::consensus_engine::types::tx::Tx;
 
-pub struct ConsensusEngine {
-    miner: Box<dyn Miner>,
-    validator: Box<dyn BlockValidator>,
+pub struct ConsensusEngine<VK>
+where
+    VK: VerifyingKey + Clone,
+{
+    miner: Box<dyn Miner<VK>>,
+    validator: Box<dyn BlockValidator<VK>>,
     difficulty: usize,
 }
 
-impl ConsensusEngine {
+impl<VK> ConsensusEngine<VK>
+where
+    VK: VerifyingKey + Clone,
+{
     pub fn new(
-        miner: Box<dyn Miner>,
-        validator: Box<dyn BlockValidator>,
+        miner: Box<dyn Miner<VK>>,
+        validator: Box<dyn BlockValidator<VK>>,
         difficulty: usize,
     ) -> Self {
         Self {
@@ -23,27 +30,18 @@ impl ConsensusEngine {
         }
     }
 
-    pub fn validate(&self, prev_block: &Block, candidate_block: &Block) -> bool {
+    pub fn validate(&self, prev_block: &Block<VK>, candidate_block: &Block<VK>) -> bool {
         self.validator.validate(prev_block, candidate_block)
     }
 
     pub fn mine(
         &mut self,
-        txs: Vec<Tx>,
-        last_block: Block,
-        hasher: Box<dyn Hasher>,
-    ) -> Option<Block> {
-        let candidate = Block::new_generating_merkle_root(
-            0,
-            txs.clone(),
-            last_block.header.prev_hash.clone(),
-            hasher,
-        );
-        let mined = self.miner.mine(candidate, self.difficulty);
-        if self.validate(&last_block, &mined) {
-            Some(mined)
-        } else {
-            None
-        }
+        txs: Vec<Tx<VK>>,
+        last_block: Block<VK>,
+        hasher: &dyn Hasher,
+    ) -> Block<VK> {
+        let candidate =
+            Block::new_generating_merkle_root(0, txs, last_block.header.prev_hash.clone(), hasher);
+        self.miner.mine(candidate, self.difficulty)
     }
 }

@@ -1,6 +1,4 @@
-pub trait Signature {
-    fn to_bytes(&self) -> Vec<u8>;
-}
+use crate::common::ports::signature::Signature;
 
 pub trait VerifyingKey {
     type Signature: Signature;

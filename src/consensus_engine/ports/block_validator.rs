@@ -1,5 +1,8 @@
-use crate::consensus_engine::types::block::Block;
+use crate::common::{ports::verifying_key::VerifyingKey, types::block::Block};
 
-pub trait BlockValidator {
-    fn validate(&self, prev_block: &Block, candidate_block: &Block) -> bool;
+pub trait BlockValidator<VK>
+where
+    VK: VerifyingKey + Clone,
+{
+    fn validate(&self, prev_block: &Block<VK>, candidate_block: &Block<VK>) -> bool;
 }

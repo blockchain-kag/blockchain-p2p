@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::mempool::{ports::verifying_key::VerifyingKey, types::tx::Tx};
+use crate::{common::ports::verifying_key::VerifyingKey, common::types::tx::Tx};
 
 pub struct Mempool<VK: Clone>
 where
