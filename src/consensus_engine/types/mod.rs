@@ -1,3 +1,3 @@
 pub mod block;
-pub mod engine;
+pub mod consensus_engine;
 mod tx;

@@ -4,13 +4,13 @@ use crate::consensus_engine::ports::miner::Miner;
 use crate::consensus_engine::types::block::Block;
 use crate::consensus_engine::types::tx::Tx;
 
-pub struct Engine {
+pub struct ConsensusEngine {
     miner: Box<dyn Miner>,
     validator: Box<dyn BlockValidator>,
     difficulty: usize,
 }
 
-impl Engine {
+impl ConsensusEngine {
     pub fn new(
         miner: Box<dyn Miner>,
         validator: Box<dyn BlockValidator>,
