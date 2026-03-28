@@ -1,4 +1,4 @@
-use crate::consensus_engine::block::block::Block;
+use crate::consensus_engine::types::block::Block;
 
 pub trait Miner {
     fn mine(&self, block: Block, difficulty: usize) -> Block;

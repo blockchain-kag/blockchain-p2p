@@ -1,96 +1,49 @@
-use crate::consensus_engine::block::block::Block;
-use crate::consensus_engine::traits::mempool::{self, Mempool};
-use crate::consensus_engine::traits::miner::Miner;
-use crate::consensus_engine::traits::network::{self, Network};
-use crate::consensus_engine::traits::storage::{self, Storage};
-use crate::consensus_engine::validation::block_validator::BlockValidator;
-use crate::consensus_engine::validation::chain_validator::ChainValidator;
+use crate::consensus_engine::ports::block_validator::BlockValidator;
+use crate::consensus_engine::ports::hasher::Hasher;
+use crate::consensus_engine::ports::miner::Miner;
+use crate::consensus_engine::types::block::Block;
+use crate::consensus_engine::types::tx::Tx;
 
 pub struct Engine {
-    storage: Box<dyn Storage>,
-    network: Box<dyn Network>,
-    mempool: Box<dyn Mempool>,
     miner: Box<dyn Miner>,
+    validator: Box<dyn BlockValidator>,
     difficulty: usize,
 }
 
 impl Engine {
     pub fn new(
-        storage: Box<dyn Storage>,
-        network: Box<dyn Network>,
-        mempool: Box<dyn Mempool>,
         miner: Box<dyn Miner>,
+        validator: Box<dyn BlockValidator>,
+        difficulty: usize,
     ) -> Self {
         Self {
-            storage,
-            network,
-            mempool,
             miner,
-            difficulty: 3,
-        }
-    }
-    // Receive a block from network
-    pub fn receive_block(&mut self, block_incoming: Block) {
-        let last_block_opt = self.storage.get_last_block();
-
-        match last_block_opt {
-            None => {
-                if !BlockValidator::validate(&block_incoming, None) {
-                    return;
-                }
-                self.storage.save(&block_incoming);
-                self.mempool
-                    .remove_transactions(&block_incoming.transactions);
-                self.network.broadcast_block(&block_incoming);
-            }
-
-            Some(last_block) => {
-                if !BlockValidator::validate(&block_incoming, Some(last_block)) {
-                    return;
-                }
-                self.storage.save(&block_incoming);
-                self.mempool
-                    .remove_transactions(&block_incoming.transactions);
-                self.network.broadcast_block(&block_incoming);
-            }
+            validator,
+            difficulty,
         }
     }
 
-    // Create a block (local mining)
-    pub fn mine_new_block(&mut self) {
-        let txs = self.mempool.get_pending_transactions();
-        let last_block = self.storage.get_last_block();
-        let candidate = match last_block {
-            None => Block::new(0, txs.clone(), String::new()),
+    pub fn validate(&self, prev_block: &Block, candidate_block: &Block) -> bool {
+        self.validator.validate(prev_block, candidate_block)
+    }
 
-            Some(last_block) => {
-                Block::new(last_block.index + 1, txs.clone(), last_block.hash.clone())
-            }
-        };
-
+    pub fn mine(
+        &mut self,
+        txs: Vec<Tx>,
+        last_block: Block,
+        hasher: Box<dyn Hasher>,
+    ) -> Option<Block> {
+        let candidate = Block::new_generating_merkle_root(
+            0,
+            txs.clone(),
+            last_block.header.prev_hash.clone(),
+            hasher,
+        );
         let mined = self.miner.mine(candidate, self.difficulty);
-
-        if !BlockValidator::validate(&mined, last_block) {
-            return;
-        }
-
-        self.storage.save(&mined);
-        self.network.broadcast_block(&mined);
-        self.mempool.remove_transactions(&txs);
-    }
-
-    // Receive a chain from network
-    pub fn receive_chain(&mut self, block: Block, chain: Vec<Block>) {
-        let local_chain = self.storage.get_chain(&block);
-
-        if !ChainValidator::validate(&chain) {
-            return;
-        }
-
-        if chain.len() > local_chain.len() {
-            let new_chain = self.storage.replace_chain(block, chain);
-            self.network.broadcast_chain(new_chain);
+        if self.validate(&last_block, &mined) {
+            Some(mined)
+        } else {
+            None
         }
     }
 }
-
