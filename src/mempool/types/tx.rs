@@ -1,8 +1,9 @@
 use crate::mempool::ports::{signing_key::SigningKey, verifying_key::VerifyingKey};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Hash([u8; 32]);
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Hash(pub [u8; 32]);
 
 pub struct Tx<VK>
 where
