@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    common::ports::hasher::Hasher,
     common::{
         ports::verifying_key::VerifyingKey,
         types::tx::{Hash, Tx},
     },
-    consensus_engine::ports::hasher::Hasher,
 };
 
 #[derive(Serialize, Deserialize)]

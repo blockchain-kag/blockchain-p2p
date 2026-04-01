@@ -1,8 +1,8 @@
+use crate::common::ports::hasher::Hasher;
 use crate::common::ports::verifying_key::VerifyingKey;
 use crate::common::types::block::Block;
 use crate::common::types::tx::Tx;
 use crate::consensus_engine::ports::block_validator::BlockValidator;
-use crate::consensus_engine::ports::hasher::Hasher;
 use crate::consensus_engine::ports::miner::Miner;
 
 pub struct ConsensusEngine<VK>
