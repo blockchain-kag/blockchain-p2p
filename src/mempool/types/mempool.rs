@@ -1,23 +1,17 @@
 use std::collections::VecDeque;
 
-use crate::{common::ports::verifying_key::VerifyingKey, common::types::tx::Tx};
+use crate::storage::types::storage_tx::StorageTx;
 
-pub struct Mempool<VK: Clone>
-where
-    VK: VerifyingKey,
-{
-    transactions: VecDeque<Tx<VK>>,
+pub struct Mempool {
+    transactions: VecDeque<StorageTx>,
 }
 
-impl<VK: Clone> Mempool<VK>
-where
-    VK: VerifyingKey,
-{
+impl Mempool {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn get_first_n(&mut self, n: usize) -> VecDeque<Tx<VK>> {
+    pub fn get_first_n(&mut self, n: usize) -> VecDeque<StorageTx> {
         let mut result = VecDeque::new();
 
         for _ in 0..n {
@@ -30,15 +24,12 @@ where
         result
     }
 
-    pub fn push(&mut self, tx: Tx<VK>) {
+    pub fn push(&mut self, tx: StorageTx) {
         self.transactions.push_back(tx);
     }
 }
 
-impl<VK: Clone> Default for Mempool<VK>
-where
-    VK: VerifyingKey,
-{
+impl Default for Mempool {
     fn default() -> Self {
         Self {
             transactions: VecDeque::default(),
