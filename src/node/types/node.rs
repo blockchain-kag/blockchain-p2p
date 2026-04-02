@@ -1,10 +1,11 @@
 use crate::{
-    consensus_engine::types::consensus_engine::ConsensusEngine, mempool::types::mempool::Mempool,
-    network_layer::Network, storage::ports::storage::Storage,
+    consensus_engine::types::consensus_engine::ConsensusEngine,
+    events::ports::event_stream::EventStream, mempool::types::mempool::Mempool,
+    storage::ports::storage::Storage,
 };
 
 pub struct Node {
-    network: Network,
+    event_streams: Vec<Box<dyn EventStream>>,
     mempool: Mempool,
     consensus_engine: ConsensusEngine,
     storage: Box<dyn Storage>,
@@ -12,13 +13,13 @@ pub struct Node {
 
 impl Node {
     pub fn new(
-        network: Network,
+        event_streams: Vec<Box<dyn EventStream>>,
         mempool: Mempool,
         consensus_engine: ConsensusEngine,
         storage: Box<dyn Storage>,
     ) -> Self {
         Self {
-            network,
+            event_streams,
             mempool,
             consensus_engine,
             storage,
