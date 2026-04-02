@@ -1,30 +1,24 @@
-use crate::{
-    common::ports::hasher::Hasher,
-    common::ports::{signature::Signature, signing_key::SigningKey, verifying_key::VerifyingKey},
-};
+use crate::{common::ports::hasher::Hasher, common::ports::signing_key::SigningKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Hash(pub [u8; 32]);
 
 #[derive(Serialize, Deserialize)]
-struct TxData<VK> {
+struct TxData {
     prev_tx_hash: Hash,
-    from: VK,
-    to: VK,
+    sender: Vec<u8>,
+    recipient: Vec<u8>,
     amount: u64,
 }
 
-impl<VK> TxData<VK>
-where
-    VK: VerifyingKey,
-{
+impl TxData {
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
         bytes.extend_from_slice(&self.prev_tx_hash.0);
-        bytes.extend_from_slice(self.from.as_bytes());
-        bytes.extend_from_slice(self.to.as_bytes());
+        bytes.extend_from_slice(&self.sender);
+        bytes.extend_from_slice(&self.recipient);
         bytes.extend_from_slice(&self.amount.to_be_bytes());
 
         bytes
@@ -32,33 +26,24 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Tx<VK>
-where
-    VK: VerifyingKey + Clone,
-{
-    data: TxData<VK>,
-    signature: VK::Signature,
+pub struct Tx {
+    data: TxData,
+    signature: Vec<u8>,
 }
 
-impl<VK> Tx<VK>
-where
-    VK: VerifyingKey + Clone,
-{
-    pub fn new_signed<SK>(
+impl Tx {
+    pub fn new_signed<SK: SigningKey>(
         prev_tx_hash: Hash,
-        from: VK,
-        to: VK,
+        from: Vec<u8>,
+        to: Vec<u8>,
         amount: u64,
         sk: &SK,
         hasher: &dyn Hasher,
-    ) -> Self
-    where
-        SK: SigningKey<Signature = VK::Signature, VerifyingKey = VK>,
-    {
+    ) -> Self {
         let data = TxData {
             prev_tx_hash,
-            to,
-            from,
+            recipient: to,
+            sender: from,
             amount,
         };
         let msg = Self::msg(hasher, &data);
@@ -67,19 +52,14 @@ where
         Self { data, signature }
     }
 
-    pub fn verify(&self, hasher: &dyn Hasher) -> bool {
-        let msg = Self::msg(hasher, &self.data);
-        self.data.from.verify(&msg.0, &self.signature)
-    }
-
-    fn msg(hasher: &dyn Hasher, data: &TxData<VK>) -> Hash {
+    fn msg(hasher: &dyn Hasher, data: &TxData) -> Hash {
         let bytes = data.to_bytes();
         hasher.hash(&bytes)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = self.data.to_bytes();
-        bytes.extend_from_slice(self.signature.to_bytes().as_slice());
+        bytes.extend_from_slice(&self.signature);
         bytes
     }
 }

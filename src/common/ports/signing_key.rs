@@ -1,9 +1,7 @@
-use crate::common::ports::verifying_key::VerifyingKey;
+use crate::common::types::crypto_scheme::CryptoScheme;
 
 pub trait SigningKey {
-    type Signature;
-    type VerifyingKey: VerifyingKey<Signature = Self::Signature>;
-
-    fn sign(&self, msg: &[u8]) -> Self::Signature;
-    fn verifying_key(&self) -> Self::VerifyingKey;
+    fn sign(&self, msg: &[u8]) -> Vec<u8>;
+    fn verifying_key(&self) -> Vec<u8>;
+    fn scheme(&self) -> CryptoScheme;
 }

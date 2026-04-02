@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     common::ports::hasher::Hasher,
-    common::{
-        ports::verifying_key::VerifyingKey,
-        types::tx::{Hash, Tx},
-    },
+    common::types::tx::{Hash, Tx},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -15,21 +12,15 @@ pub struct BlockHeader {
     pub merkle_root: Hash,
 }
 #[derive(Serialize, Deserialize)]
-pub struct Block<VK>
-where
-    VK: VerifyingKey + Clone,
-{
+pub struct Block {
     pub header: BlockHeader,
-    pub txs: Vec<Tx<VK>>,
+    pub txs: Vec<Tx>,
 }
 
-impl<VK> Block<VK>
-where
-    VK: VerifyingKey + Clone,
-{
+impl Block {
     pub fn new_generating_merkle_root(
         nonce: u64,
-        txs: Vec<Tx<VK>>,
+        txs: Vec<Tx>,
         prev_hash: Hash,
         hasher: &dyn Hasher,
     ) -> Self {
@@ -44,7 +35,7 @@ where
         }
     }
 
-    pub fn new(nonce: u64, txs: Vec<Tx<VK>>, prev_hash: Hash, merkle_root: Hash) -> Self {
+    pub fn new(nonce: u64, txs: Vec<Tx>, prev_hash: Hash, merkle_root: Hash) -> Self {
         Block {
             header: BlockHeader {
                 prev_hash,
@@ -55,7 +46,7 @@ where
         }
     }
 
-    fn generate_merkle_root(hasher: &dyn Hasher, txs: &[Tx<VK>]) -> Hash {
+    fn generate_merkle_root(hasher: &dyn Hasher, txs: &[Tx]) -> Hash {
         let mut hashes: Vec<Hash> = txs.iter().map(|tx| hasher.hash(&tx.to_bytes())).collect();
 
         if hashes.is_empty() {
