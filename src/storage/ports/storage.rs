@@ -1,11 +1,11 @@
-use crate::{common::types::tx::Hash, storage::types::storage_block::StorageBlock};
+use crate::common::types::{block::Block, tx::Hash};
 
-trait Storage {
-    fn get_block(&self, hash: &Hash) -> Option<StorageBlock>;
+pub trait Storage {
+    fn get_block(&self, hash: &Hash) -> Option<Block>;
 
     fn get_height(&self, hash: &Hash) -> Option<u64>;
 
-    fn get_tip(&self) -> Option<StorageBlock>;
+    fn get_tip(&self) -> Option<Block>;
 
-    fn insert_block(&mut self, block: StorageBlock) -> Result<(), String>;
+    fn insert_block(&mut self, block: Block) -> Result<(), String>;
 }

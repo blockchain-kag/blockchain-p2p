@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
 
-use crate::storage::types::storage_tx::StorageTx;
+use crate::common::types::tx::Tx;
 
+#[derive(Default)]
 pub struct Mempool {
-    transactions: VecDeque<StorageTx>,
+    transactions: VecDeque<Tx>,
 }
 
 impl Mempool {
@@ -11,7 +12,7 @@ impl Mempool {
         Self::default()
     }
 
-    pub fn get_first_n(&mut self, n: usize) -> VecDeque<StorageTx> {
+    pub fn get_first_n(&mut self, n: usize) -> VecDeque<Tx> {
         let mut result = VecDeque::new();
 
         for _ in 0..n {
@@ -24,15 +25,7 @@ impl Mempool {
         result
     }
 
-    pub fn push(&mut self, tx: StorageTx) {
+    pub fn push(&mut self, tx: Tx) {
         self.transactions.push_back(tx);
-    }
-}
-
-impl Default for Mempool {
-    fn default() -> Self {
-        Self {
-            transactions: VecDeque::default(),
-        }
     }
 }

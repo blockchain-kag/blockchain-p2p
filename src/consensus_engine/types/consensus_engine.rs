@@ -28,8 +28,14 @@ impl ConsensusEngine {
     }
 
     pub fn mine(&mut self, txs: Vec<Tx>, last_block: Block, hasher: &dyn Hasher) -> Block {
-        let candidate =
-            Block::new_generating_merkle_root(0, txs, last_block.header.prev_hash.clone(), hasher);
+        let candidate = Block::new(
+            last_block.header.version,
+            last_block.hash(hasher),
+            0,
+            txs,
+            hasher,
+        );
+
         self.miner.mine(candidate, self.difficulty)
     }
 }
