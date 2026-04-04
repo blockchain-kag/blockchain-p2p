@@ -7,9 +7,9 @@ use crate::consensus_engine::ports::block_validator::BlockValidator;
 use crate::consensus_engine::ports::miner::Miner;
 
 pub struct ConsensusEngine {
-    miner: Box<dyn Miner>,
+    _miner: Box<dyn Miner>,
     validator: Box<dyn BlockValidator>,
-    difficulty: usize,
+    _difficulty: usize,
 }
 
 impl ConsensusEngine {
@@ -19,9 +19,9 @@ impl ConsensusEngine {
         difficulty: usize,
     ) -> Self {
         Self {
-            miner,
+            _miner: miner,
             validator,
-            difficulty,
+            _difficulty: difficulty,
         }
     }
 
@@ -31,9 +31,9 @@ impl ConsensusEngine {
 
     pub fn start_mining(
         &self,
-        txs: VecDeque<Tx>,
-        last_block: &Block,
-        hasher: &dyn Hasher,
+        _txs: VecDeque<Tx>,
+        _last_block: &Block,
+        _hasher: &dyn Hasher,
     ) -> Result<(), ()> {
         todo!();
     }
