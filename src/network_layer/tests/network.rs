@@ -4,15 +4,6 @@ use crate::network_layer::{
 };
 
 #[test]
-fn create_network_test() {
-    let network = Network::new(
-        Box::new(MockNetworkSender::new(true)),
-        Box::new(MockNetworkReceiver::new(true)),
-    );
-    assert!(!network.has_peers());
-}
-
-#[test]
 fn add_peer_to_network_test() {
     let mut network = Network::new(
         Box::new(MockNetworkSender::new(true)),

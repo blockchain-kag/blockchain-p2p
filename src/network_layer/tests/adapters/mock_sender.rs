@@ -11,7 +11,7 @@ impl MockNetworkSender {
 }
 
 impl NetworkSender for MockNetworkSender {
-    fn send(&self, _: String, msg: String) -> Result<String, String> {
+    fn send(&self, _: String, _: String) -> Result<String, String> {
         if self.is_result_correct {
             Ok(String::from("Correct send"))
         } else {
