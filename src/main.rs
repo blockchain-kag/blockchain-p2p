@@ -14,7 +14,7 @@ use crossterm::{
 
 fn main() {
     let mut stdout = stdout();
-    let w_size: WindowSize = terminal::window_size().unwrap();
+    let mut w_size: WindowSize = terminal::window_size().unwrap();
     let mut prompt = String::new();
     terminal::enable_raw_mode().unwrap();
     let mut quit = false;
@@ -60,7 +60,14 @@ fn main() {
                 },
                 crossterm::event::Event::Mouse(_) => todo!(),
                 crossterm::event::Event::Paste(_) => todo!(),
-                crossterm::event::Event::Resize(_, _) => todo!(),
+                crossterm::event::Event::Resize(w, h) => {
+                    w_size = WindowSize {
+                        rows: h,
+                        columns: w,
+                        width: w_size.width,
+                        height: w_size.height,
+                    }
+                }
             }
         }
 
