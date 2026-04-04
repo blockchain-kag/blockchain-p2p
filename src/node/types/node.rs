@@ -93,6 +93,7 @@ impl Node {
             NodeEvent::PauseMining => self.consensus_engine.pause_mining().unwrap(),
             NodeEvent::ContinueMining => self.consensus_engine.continue_mining().unwrap(),
             NodeEvent::StopMining => self.consensus_engine.stop_mining().unwrap(),
+            NodeEvent::Sync => todo!(),
         }
         ControlFlow::Continue(())
     }

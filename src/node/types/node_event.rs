@@ -9,4 +9,5 @@ pub enum NodeEvent {
     PauseMining,
     ContinueMining,
     StopMining,
+    Sync,
 }
