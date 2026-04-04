@@ -1,5 +1,6 @@
 use std::{
     io::{Write, stdout},
+    ops::Add,
     thread::sleep,
     time::Duration,
 };
@@ -59,7 +60,9 @@ fn main() {
                     crossterm::event::KeyCode::Modifier(_) => todo!(),
                 },
                 crossterm::event::Event::Mouse(_) => todo!(),
-                crossterm::event::Event::Paste(_) => todo!(),
+                crossterm::event::Event::Paste(data) => {
+                    prompt = prompt.add(&data);
+                }
                 crossterm::event::Event::Resize(w, h) => {
                     w_size = WindowSize {
                         rows: h,
