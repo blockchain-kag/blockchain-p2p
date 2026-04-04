@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::common::ports::hasher::Hasher;
 use crate::common::types::block::Block;
 use crate::common::types::tx::Tx;
@@ -27,15 +29,22 @@ impl ConsensusEngine {
         self.validator.validate(prev_block, candidate_block)
     }
 
-    pub fn mine(&self, txs: Vec<Tx>, last_block: &Block, hasher: &dyn Hasher) -> Block {
-        let candidate = Block::new(
-            last_block.header.version,
-            last_block.hash(hasher),
-            0,
-            txs,
-            hasher,
-        );
+    pub fn start_mining(
+        &self,
+        txs: VecDeque<Tx>,
+        last_block: &Block,
+        hasher: &dyn Hasher,
+    ) -> Result<(), ()> {
+        todo!();
+    }
 
-        self.miner.mine(candidate, self.difficulty)
+    pub fn stop_mining(&self) -> Result<(), ()> {
+        todo!();
+    }
+    pub fn pause_mining(&self) -> Result<(), ()> {
+        todo!();
+    }
+    pub fn continue_mining(&self) -> Result<(), ()> {
+        todo!();
     }
 }
