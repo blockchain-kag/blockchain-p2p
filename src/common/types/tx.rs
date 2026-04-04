@@ -58,6 +58,22 @@ impl Tx {
         Self { data, signature }
     }
 
+    pub fn new(
+        prev_tx_hash: Hash,
+        from: Vec<u8>,
+        to: Vec<u8>,
+        amount: u64,
+        signature: Vec<u8>,
+    ) -> Self {
+        let data = TxData {
+            prev_tx_hash,
+            recipient: to,
+            sender: from,
+            amount,
+        };
+        Self { data, signature }
+    }
+
     fn msg(hasher: &dyn Hasher, data: &TxData) -> Hash {
         let bytes = data.to_bytes();
         hasher.hash(&bytes)
