@@ -27,7 +27,7 @@ impl ConsensusEngine {
         self.validator.validate(prev_block, candidate_block)
     }
 
-    pub fn mine(&mut self, txs: Vec<Tx>, last_block: Block, hasher: &dyn Hasher) -> Block {
+    pub fn mine(&self, txs: Vec<Tx>, last_block: &Block, hasher: &dyn Hasher) -> Block {
         let candidate = Block::new(
             last_block.header.version,
             last_block.hash(hasher),

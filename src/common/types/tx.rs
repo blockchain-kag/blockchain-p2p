@@ -4,6 +4,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Hash(pub [u8; 32]);
 
+impl Hash {
+    pub fn zero() -> Hash {
+        Hash([0; 32])
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct TxData {
     prev_tx_hash: Hash,
