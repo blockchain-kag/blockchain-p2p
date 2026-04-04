@@ -1,3 +1,3 @@
-pub mod adapters;
+mod adapters;
 pub mod ports;
 pub mod types;

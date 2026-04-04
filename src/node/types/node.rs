@@ -1,30 +1,25 @@
 use std::{
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{AtomicBool, Ordering},
+        mpsc::{Receiver, Sender},
     },
     thread::sleep,
 };
 
-use crate::{
-    consensus_engine::types::consensus_engine::ConsensusEngine,
-    events::{ports::event_stream::EventStream, types::node_event::NodeEvent},
-    mempool::types::mempool::Mempool,
-    node::ports::emmitter::Emmitter,
-    storage::ports::storage::Storage,
-};
+use crate::node::types::node_event::NodeEvent;
 
 pub struct Node {
-    event_stream: Box<dyn EventStream>,
+    event_stream: Receiver<NodeEvent>,
     shutdown: Arc<AtomicBool>,
-    emmitter: Arc<Mutex<dyn Emmitter>>,
+    emmitter: Sender<String>,
 }
 
 impl Node {
     pub fn new(
-        event_stream: Box<dyn EventStream + Send>,
+        event_stream: Receiver<NodeEvent>,
         shutdown: Arc<AtomicBool>,
-        emmitter: Arc<Mutex<dyn Emmitter>>,
+        emmitter: Sender<String>,
     ) -> Self {
         Self {
             event_stream,
@@ -35,28 +30,25 @@ impl Node {
 
     pub fn run(&mut self) {
         self.emmitter
-            .lock()
-            .unwrap()
-            .emmit(String::from("Node starting...\n"))
+            .send(String::from("Node starting..."))
             .unwrap();
         while !self.shutdown.load(Ordering::Relaxed) {
-            while let Some(event) = self.event_stream.try_recv() {
+            while let Ok(event) = self.event_stream.try_recv() {
                 match event {
+                    NodeEvent::ListCommands => {
+                        self.emmitter.send(String::from("quit & help")).unwrap();
+                    }
                     NodeEvent::Quit => {
                         self.shutdown.store(true, Ordering::Relaxed);
                         break;
                     }
-                    NodeEvent::NewTransaction(tx) => todo!(),
-                    NodeEvent::NewBlock(block) => todo!(),
+                    NodeEvent::NewTransaction(_tx) => todo!(),
+                    NodeEvent::NewBlock(_block) => todo!(),
                 }
             }
 
             sleep(std::time::Duration::from_millis(10));
         }
-        self.emmitter
-            .lock()
-            .unwrap()
-            .emmit(String::from("\nNode stoping...\n"))
-            .unwrap();
+        self.emmitter.send(String::from("Node stoping...")).unwrap();
     }
 }
