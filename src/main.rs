@@ -1,6 +1,7 @@
 use std::{
     io::{Write, stdout},
     ops::Add,
+    sync::mpsc::channel,
     thread::sleep,
     time::Duration,
 };
@@ -14,9 +15,12 @@ use crossterm::{
 };
 
 fn main() {
+    let (in_tx, out_rx) = channel::<String>();
+    let (_, _) = channel::<String>();
     let mut stdout = stdout();
     let mut w_size: WindowSize = terminal::window_size().unwrap();
     let mut prompt = String::new();
+    let mut outputs: Vec<String> = vec![];
     terminal::enable_raw_mode().unwrap();
     let mut quit = false;
     while !quit {
@@ -28,7 +32,10 @@ fn main() {
                     crossterm::event::KeyCode::Backspace => {
                         prompt.pop();
                     }
-                    crossterm::event::KeyCode::Enter => todo!(),
+                    crossterm::event::KeyCode::Enter => {
+                        in_tx.send(prompt.clone()).unwrap();
+                        prompt = String::new();
+                    }
                     crossterm::event::KeyCode::Left => todo!(),
                     crossterm::event::KeyCode::Right => todo!(),
                     crossterm::event::KeyCode::Up => todo!(),
@@ -61,6 +68,7 @@ fn main() {
                 },
                 crossterm::event::Event::Mouse(_) => todo!(),
                 crossterm::event::Event::Paste(data) => {
+                    in_tx.send(prompt.clone()).unwrap();
                     prompt = prompt.add(&data);
                 }
                 crossterm::event::Event::Resize(w, h) => {
@@ -73,9 +81,21 @@ fn main() {
                 }
             }
         }
+
+        queue!(stdout, Clear(ClearType::All)).unwrap();
+
+        if let Ok(output) = out_rx.try_recv() {
+            outputs.push(output);
+        }
+
         let prompt_start = w_size.rows - 3;
         let screen_division = w_size.columns / 2;
-        queue!(stdout, Clear(ClearType::All)).unwrap();
+
+        let skip = outputs.len().saturating_sub(prompt_start as usize - 3);
+        for (dy, output) in outputs.iter().skip(skip).enumerate() {
+            queue!(stdout, MoveTo(1, 3 + dy as u16), Print(output)).unwrap();
+        }
+
         for y in 1..w_size.rows - 1 {
             queue!(stdout, MoveTo(0, y), Print("║")).unwrap();
             if y != w_size.rows - 2 {
