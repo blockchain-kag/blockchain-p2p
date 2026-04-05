@@ -91,19 +91,29 @@ fn main() {
         let prompt_start = w_size.rows - 3;
         let screen_division = w_size.columns / 2;
 
-        let skip = outputs.len().saturating_sub(prompt_start as usize - 3);
-        for (dy, output) in outputs.iter().skip(skip).enumerate() {
-            queue!(
-                stdout,
-                MoveTo(1, 3 + dy as u16),
-                Print(
-                    output
-                        .get(0..screen_division as usize - 1)
-                        .unwrap_or(output)
-                )
-            )
-            .unwrap();
-        }
+        let inner_top = 3;
+        let inner_right = w_size.columns - 2;
+        let inner_bottom = w_size.rows - 2;
+        let inner_left = 0;
+
+        let content_padding = 1;
+        let logs_screen_bottom = inner_bottom - 2;
+        entries_renderer(
+            &outputs,
+            inner_top,
+            screen_division,
+            logs_screen_bottom,
+            inner_left,
+            content_padding,
+        );
+        entries_renderer(
+            &outputs,
+            inner_top,
+            inner_right,
+            logs_screen_bottom,
+            screen_division,
+            content_padding,
+        );
 
         for y in 1..w_size.rows - 1 {
             queue!(stdout, MoveTo(0, y), Print("║")).unwrap();
@@ -152,6 +162,31 @@ fn main() {
     }
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
+}
+
+fn entries_renderer(
+    outputs: &[String],
+    top_boundary: u16,
+    right_boundary: u16,
+    bottom_boundary: u16,
+    left_boundary: u16,
+    padding: u16,
+) {
+    let height = bottom_boundary - top_boundary + 1 - 2 * padding;
+    let width = right_boundary - left_boundary - 1 - 2 * padding;
+    let mut stdout = stdout();
+    let skip = outputs.len().saturating_sub(height as usize);
+    for (dy, output) in outputs.iter().skip(skip).enumerate() {
+        queue!(
+            stdout,
+            MoveTo(
+                left_boundary + 1 + padding,
+                top_boundary + padding + dy as u16
+            ),
+            Print(output.get(0..width as usize).unwrap_or(output))
+        )
+        .unwrap();
+    }
 }
 
 fn queue_section_title(x_start: u16, y_start: u16, title: &str) {
