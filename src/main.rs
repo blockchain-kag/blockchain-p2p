@@ -68,41 +68,45 @@ fn main() {
             outputs.push(output);
         }
 
+        let bd_left = 0;
+        let bd_top = 0;
+        let bd_right = w_size.columns - 1;
+        let bd_bottom = w_size.rows - 1;
+
+        let content_padding = 1;
+        let main_section_inner_top = bd_top + 3;
+        let main_section_inner_bottom = bd_bottom - 2;
+
         let prompt_start = w_size.rows - 3;
         let screen_division = w_size.columns / 2;
 
-        let inner_top = 3;
-        let inner_right = w_size.columns - 2;
-        let inner_bottom = w_size.rows - 2;
-        let inner_left = 0;
-
-        let content_padding = 1;
-        let main_section_iner = inner_bottom - 2;
-
-        for y in 1..w_size.rows - 1 {
-            queue!(stdout, MoveTo(0, y), Print("║")).unwrap();
-            if y != w_size.rows - 2 {
+        for y in 1..=bd_bottom {
+            queue!(stdout, MoveTo(bd_left, y), Print("║")).unwrap();
+            if y < prompt_start {
                 queue!(stdout, MoveTo(screen_division, y), Print("║")).unwrap();
             }
-            queue!(stdout, MoveTo(w_size.columns - 1, y), Print("║")).unwrap();
+            queue!(stdout, MoveTo(bd_right, y), Print("║")).unwrap();
         }
-        for x in 0..w_size.columns {
-            if x == 0 {
-                queue!(stdout, MoveTo(x, 1), Print("╔")).unwrap();
-                queue!(stdout, MoveTo(x, prompt_start), Print("╠")).unwrap();
-                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("╚")).unwrap();
+        for x in 0..=bd_right {
+            let border_top = bd_top + 1;
+            let border_med = prompt_start;
+            let border_bot = bd_bottom;
+            if x == bd_left {
+                queue!(stdout, MoveTo(x, border_top), Print("╔")).unwrap();
+                queue!(stdout, MoveTo(x, border_med), Print("╠")).unwrap();
+                queue!(stdout, MoveTo(x, border_bot), Print("╚")).unwrap();
             } else if x == screen_division {
-                queue!(stdout, MoveTo(x, 1), Print("╦")).unwrap();
-                queue!(stdout, MoveTo(x, prompt_start), Print("╩")).unwrap();
-                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("═")).unwrap();
-            } else if x == w_size.columns - 1 {
-                queue!(stdout, MoveTo(x, 1), Print("╗")).unwrap();
-                queue!(stdout, MoveTo(x, prompt_start), Print("╣")).unwrap();
-                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("╝")).unwrap();
+                queue!(stdout, MoveTo(x, border_top), Print("╦")).unwrap();
+                queue!(stdout, MoveTo(x, border_med), Print("╩")).unwrap();
+                queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
+            } else if x == bd_right {
+                queue!(stdout, MoveTo(x, border_top), Print("╗")).unwrap();
+                queue!(stdout, MoveTo(x, border_med), Print("╣")).unwrap();
+                queue!(stdout, MoveTo(x, border_bot), Print("╝")).unwrap();
             } else {
-                queue!(stdout, MoveTo(x, 1), Print("═")).unwrap();
-                queue!(stdout, MoveTo(x, prompt_start), Print("═")).unwrap();
-                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, border_top), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, border_med), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
             }
         }
         queue_section_title(1, 0, "System messages section");
@@ -110,10 +114,10 @@ fn main() {
 
         entries_renderer(
             &outputs,
-            inner_top,
+            main_section_inner_top,
             screen_division,
-            main_section_iner,
-            inner_left,
+            main_section_inner_bottom,
+            bd_left,
             content_padding,
         );
         let sections = vec![
@@ -134,17 +138,22 @@ fn main() {
             ],
         ];
 
-        static_section_rendering(screen_division, inner_top, content_padding, sections);
+        static_section_rendering(
+            screen_division,
+            main_section_inner_top,
+            content_padding,
+            sections,
+        );
 
-        let prompt_start = if prompt.len() > w_size.columns as usize {
-            prompt.len() - (w_size.columns as usize - 2)
+        let prompt_start = if prompt.len() >= bd_right as usize {
+            prompt.len() - (bd_right as usize - 1)
         } else {
             0
         };
 
         queue!(
             stdout,
-            MoveTo(1, w_size.rows - 2),
+            MoveTo(bd_left + 1, bd_bottom - 1),
             Print(prompt.get(prompt_start..prompt.len()).unwrap())
         )
         .unwrap();
@@ -191,7 +200,7 @@ fn entries_renderer(
     left_boundary: u16,
     padding: u16,
 ) {
-    let height = bottom_boundary - top_boundary + 1 - 2 * padding;
+    let height = bottom_boundary - top_boundary - 1 - 2 * padding;
     let width = right_boundary - left_boundary - 1 - 2 * padding;
     let mut stdout = stdout();
     let skip = outputs.len().saturating_sub(height as usize);
