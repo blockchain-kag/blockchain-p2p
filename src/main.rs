@@ -93,7 +93,16 @@ fn main() {
 
         let skip = outputs.len().saturating_sub(prompt_start as usize - 3);
         for (dy, output) in outputs.iter().skip(skip).enumerate() {
-            queue!(stdout, MoveTo(1, 3 + dy as u16), Print(output)).unwrap();
+            queue!(
+                stdout,
+                MoveTo(1, 3 + dy as u16),
+                Print(
+                    output
+                        .get(0..screen_division as usize - 1)
+                        .unwrap_or(output)
+                )
+            )
+            .unwrap();
         }
 
         for y in 1..w_size.rows - 1 {
