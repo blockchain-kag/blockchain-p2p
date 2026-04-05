@@ -5,7 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BlockHeader {
     pub version: u32,
     pub prev_hash: Hash,
@@ -28,7 +28,7 @@ impl BlockHeader {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Block {
     pub header: BlockHeader,
     pub txs: Vec<Tx>,

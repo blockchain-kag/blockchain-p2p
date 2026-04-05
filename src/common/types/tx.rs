@@ -1,7 +1,7 @@
 use crate::{common::ports::hasher::Hasher, common::ports::signing_key::SigningKey};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Hash(pub [u8; 32]);
 
 impl Hash {
@@ -10,7 +10,7 @@ impl Hash {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct TxData {
     prev_tx_hash: Hash,
     sender: Vec<u8>,
@@ -31,7 +31,7 @@ impl TxData {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Tx {
     data: TxData,
     signature: Vec<u8>,

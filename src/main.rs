@@ -1,11 +1,26 @@
 use std::{
     io::{Stdout, Write, stdout},
     ops::Add,
-    sync::mpsc::{Receiver, Sender, channel},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::{Receiver, Sender, channel},
+    },
     thread::sleep,
     time::Duration,
 };
 
+use blockchain_p2p::{
+    consensus_engine::types::consensus_engine::ConsensusEngine,
+    mempool::types::mempool::Mempool,
+    node::{
+        adapters::{
+            consensus_engine::miner::CpuMiner, hasher::sha256_hasher::Sha256Hasher,
+            storage::in_memory_storage::InMemoryStorage,
+        },
+        types::{node::Node, node_event::NodeEvent},
+    },
+};
 use crossterm::{
     cursor::{MoveDown, MoveLeft, MoveTo},
     event::{Event, KeyCode, poll, read},
@@ -15,17 +30,33 @@ use crossterm::{
 };
 
 fn main() {
-    let (in_tx, out_rx) = channel::<String>();
-    let (_, _) = channel::<String>();
+    let (in_tx, in_rx) = channel::<String>();
+    let (event_tx, event_rx) = channel::<NodeEvent>();
+    let (out_tx, _) = channel::<String>();
     let mut stdout = stdout();
     let mut w_size: WindowSize = terminal::window_size().unwrap();
     let mut prompt = String::new();
     let mut outputs: Vec<String> = vec![];
     terminal::enable_raw_mode().unwrap();
-    let mut quit = false;
-    while !quit {
-        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, &mut quit);
-        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
+    let mut shutdown = Arc::new(AtomicBool::from(false));
+    let mempool = Mempool::new();
+    let storage = Box::new(InMemoryStorage::new());
+    let difficulty = 3;
+    let hasher = Arc::new(Sha256Hasher);
+    let miner = Box::new(CpuMiner::new(hasher));
+    let consensus_engine = ConsensusEngine::new(miner, validator, difficulty);
+    let node = Node::new(
+        event_rx,
+        shutdown,
+        out_tx,
+        mempool,
+        storage,
+        consensus_engine,
+        hasher,
+    );
+    while !shutdown.load(Ordering::Relaxed) {
+        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown);
+        render_screen(&in_rx, &mut stdout, &w_size, &prompt, &mut outputs);
     }
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
@@ -35,7 +66,7 @@ fn handle_user_interaction(
     in_tx: &Sender<String>,
     w_size: &mut WindowSize,
     prompt: &mut String,
-    quit: &mut bool,
+    quit: Arc<AtomicBool>,
 ) {
     while poll(Duration::ZERO).unwrap() {
         match read().unwrap() {
@@ -55,7 +86,7 @@ fn handle_user_interaction(
                     prompt.push(c);
                 }
                 KeyCode::Esc => {
-                    *quit = true;
+                    quit.store(true, Ordering::Release);
                 }
                 _ => {}
             },

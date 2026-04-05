@@ -22,7 +22,7 @@ pub struct Node {
     mempool: Mempool,
     storage: Box<dyn Storage>,
     consensus_engine: ConsensusEngine,
-    hasher: Box<dyn Hasher>,
+    hasher: Arc<dyn Hasher>,
 }
 
 impl Node {
@@ -33,7 +33,7 @@ impl Node {
         mempool: Mempool,
         storage: Box<dyn Storage>,
         consensus_engine: ConsensusEngine,
-        hasher: Box<dyn Hasher>,
+        hasher: Arc<dyn Hasher>,
     ) -> Self {
         Self {
             event_stream,
@@ -75,19 +75,19 @@ impl Node {
             NodeEvent::NewTransaction(tx) => self.mempool.push(tx),
             NodeEvent::NewBlock(block) => match self.storage.get_tip() {
                 Some(prev_block) => {
-                    if self.consensus_engine.validate(&prev_block, &block) {
-                        self.storage.insert_block(block).unwrap();
+                    if self.consensus_engine.validate(prev_block, &block) {
+                        self.storage.insert_block(block, &*self.hasher).unwrap();
                     };
                 }
                 None => {
-                    self.storage.insert_block(block).unwrap();
+                    self.storage.insert_block(block, &*self.hasher).unwrap();
                 }
             },
             NodeEvent::StartMining => {
                 let txs = self.mempool.get_first_n(10);
                 let last_block = self.storage.get_tip().unwrap();
                 self.consensus_engine
-                    .start_mining(txs, &last_block, self.hasher.as_ref())
+                    .start_mining(txs, last_block, self.hasher.as_ref())
                     .unwrap();
             }
             NodeEvent::PauseMining => self.consensus_engine.pause_mining().unwrap(),
