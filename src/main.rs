@@ -105,7 +105,18 @@ fn main() {
         queue_section_title(1, 0, "System messages section");
         queue_section_title(screen_division + 1, 0, "Minning section");
 
-        queue!(stdout, MoveTo(1, w_size.rows - 2), Print(&prompt)).unwrap();
+        let prompt_start = if prompt.len() > w_size.columns as usize {
+            prompt.len() - (w_size.columns as usize - 2)
+        } else {
+            0
+        };
+
+        queue!(
+            stdout,
+            MoveTo(1, w_size.rows - 2),
+            Print(prompt.get(prompt_start..prompt.len()).unwrap())
+        )
+        .unwrap();
 
         stdout.flush().unwrap();
         sleep(Duration::from_millis(33));
