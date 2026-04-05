@@ -3,7 +3,12 @@ use std::sync::mpsc::{Receiver, Sender};
 use crate::common::types::block::Block;
 
 pub enum MinerCommand {
-    Start(Block, usize),
+    Start {
+        block: Block,
+        difficulty: usize,
+        worker_id: usize,
+        num_workers: usize,
+    },
     Pause,
     Resume,
     Stop,

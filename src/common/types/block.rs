@@ -3,7 +3,10 @@ use crate::{
     common::types::tx::{Hash, Tx},
 };
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    collections::VecDeque,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BlockHeader {
@@ -31,7 +34,7 @@ impl BlockHeader {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Block {
     pub header: BlockHeader,
-    pub txs: Vec<Tx>,
+    pub txs: VecDeque<Tx>,
 }
 
 fn current_timestamp() -> u64 {
@@ -46,10 +49,10 @@ impl Block {
         version: u32,
         prev_hash: Hash,
         nonce: u64,
-        txs: Vec<Tx>,
+        txs: VecDeque<Tx>,
         hasher: &dyn Hasher,
     ) -> Self {
-        let merkle_root = Self::generate_merkle_root(hasher, &txs);
+        let merkle_root = Self::generate_merkle_root(hasher, &Vec::from(txs.clone()));
         Block {
             header: BlockHeader {
                 version,
@@ -66,7 +69,7 @@ impl Block {
         version: u32,
         prev_hash: Hash,
         nonce: u64,
-        txs: Vec<Tx>,
+        txs: VecDeque<Tx>,
         merkle_root: Hash,
     ) -> Self {
         Block {

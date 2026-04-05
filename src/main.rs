@@ -44,6 +44,7 @@ fn main() {
     let difficulty = 3;
     let hasher = Arc::new(Sha256Hasher);
     let miner = Box::new(CpuMiner::new(hasher));
+    let validator = Box::new(x);
     let consensus_engine = ConsensusEngine::new(miner, validator, difficulty);
     let node = Node::new(
         event_rx,
