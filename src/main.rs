@@ -8,7 +8,7 @@ use std::{
 use crossterm::{
     cursor::MoveTo,
     event::{poll, read},
-    queue,
+    execute, queue,
     style::Print,
     terminal::{self, Clear, ClearType, WindowSize},
 };
@@ -111,6 +111,7 @@ fn main() {
         sleep(Duration::from_millis(33));
     }
     terminal::disable_raw_mode().unwrap();
+    execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
 }
 
 fn queue_section_title(x_start: u16, y_start: u16, title: &str) {
