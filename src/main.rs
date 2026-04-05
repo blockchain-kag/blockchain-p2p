@@ -73,28 +73,57 @@ fn main() {
                 }
             }
         }
-
+        let prompt_start = w_size.rows - 3;
+        let screen_division = w_size.columns / 2;
         queue!(stdout, Clear(ClearType::All)).unwrap();
-        for y in 0..(w_size.rows - 2) {
-            queue!(stdout, MoveTo(w_size.columns / 2, y), Print("║")).unwrap();
+        for y in 1..w_size.rows - 1 {
+            queue!(stdout, MoveTo(0, y), Print("║")).unwrap();
+            if y != w_size.rows - 2 {
+                queue!(stdout, MoveTo(screen_division, y), Print("║")).unwrap();
+            }
+            queue!(stdout, MoveTo(w_size.columns - 1, y), Print("║")).unwrap();
         }
         for x in 0..w_size.columns {
-            if x == w_size.columns / 2 {
-                queue!(
-                    stdout,
-                    MoveTo(w_size.columns / 2, w_size.rows - 2),
-                    Print("╩")
-                )
-                .unwrap();
+            if x == 0 {
+                queue!(stdout, MoveTo(x, 1), Print("╔")).unwrap();
+                queue!(stdout, MoveTo(x, prompt_start), Print("╠")).unwrap();
+                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("╚")).unwrap();
+            } else if x == screen_division {
+                queue!(stdout, MoveTo(x, 1), Print("╦")).unwrap();
+                queue!(stdout, MoveTo(x, prompt_start), Print("╩")).unwrap();
+                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("═")).unwrap();
+            } else if x == w_size.columns - 1 {
+                queue!(stdout, MoveTo(x, 1), Print("╗")).unwrap();
+                queue!(stdout, MoveTo(x, prompt_start), Print("╣")).unwrap();
+                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("╝")).unwrap();
             } else {
-                queue!(stdout, MoveTo(x, w_size.rows - 2), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, 1), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, prompt_start), Print("═")).unwrap();
+                queue!(stdout, MoveTo(x, w_size.rows - 1), Print("═")).unwrap();
             }
         }
+        queue_section_title(1, 0, "System messages section");
+        queue_section_title(screen_division + 1, 0, "Minning section");
 
-        queue!(stdout, MoveTo(0, w_size.rows), Print(&prompt)).unwrap();
+        queue!(stdout, MoveTo(1, w_size.rows - 2), Print(&prompt)).unwrap();
 
         stdout.flush().unwrap();
         sleep(Duration::from_millis(33));
     }
     terminal::disable_raw_mode().unwrap();
+}
+
+fn queue_section_title(x_start: u16, y_start: u16, title: &str) {
+    let mut stdout = stdout();
+    let title_container_side = "─".repeat(title.len());
+    queue!(
+        stdout,
+        MoveTo(x_start, y_start),
+        Print(format!("{}{title_container_side}{}", "┌", "┐")),
+        MoveTo(x_start, y_start + 1),
+        Print(format!("{}{title}{}", "╡", "╞")),
+        MoveTo(x_start, y_start + 2),
+        Print(format!("{}{title_container_side}{}", "└", "┘")),
+    )
+    .unwrap();
 }
