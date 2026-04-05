@@ -1,14 +1,14 @@
 use std::{
-    io::{Write, stdout},
+    io::{Stdout, Write, stdout},
     ops::Add,
-    sync::mpsc::channel,
+    sync::mpsc::{Receiver, Sender, channel},
     thread::sleep,
     time::Duration,
 };
 
 use crossterm::{
     cursor::{MoveDown, MoveLeft, MoveTo},
-    event::{poll, read},
+    event::{Event, KeyCode, poll, read},
     execute, queue,
     style::Print,
     terminal::{self, Clear, ClearType, WindowSize},
@@ -24,145 +24,181 @@ fn main() {
     terminal::enable_raw_mode().unwrap();
     let mut quit = false;
     while !quit {
-        while poll(Duration::ZERO).unwrap() {
-            match read().unwrap() {
-                crossterm::event::Event::Key(key_event) => match key_event.code {
-                    crossterm::event::KeyCode::Backspace => {
-                        prompt.pop();
-                    }
-                    crossterm::event::KeyCode::Enter => {
-                        in_tx.send(prompt.clone()).unwrap();
-                        prompt = String::new();
-                    }
-                    crossterm::event::KeyCode::Left => todo!(),
-                    crossterm::event::KeyCode::Right => todo!(),
-                    crossterm::event::KeyCode::Up => todo!(),
-                    crossterm::event::KeyCode::Down => todo!(),
-                    crossterm::event::KeyCode::Char(c) => {
-                        prompt.push(c);
-                    }
-                    crossterm::event::KeyCode::Esc => {
-                        quit = true;
-                    }
-                    _ => {}
-                },
-                crossterm::event::Event::Paste(data) => {
-                    in_tx.send(prompt.clone()).unwrap();
-                    prompt = prompt.add(&data);
-                }
-                crossterm::event::Event::Resize(w, h) => {
-                    w_size = WindowSize {
-                        rows: h,
-                        columns: w,
-                        width: w_size.width,
-                        height: w_size.height,
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        queue!(stdout, Clear(ClearType::All)).unwrap();
-
-        if let Ok(output) = out_rx.try_recv() {
-            outputs.push(output);
-        }
-
-        let bd_left = 0;
-        let bd_top = 0;
-        let bd_right = w_size.columns - 1;
-        let bd_bottom = w_size.rows - 1;
-
-        let content_padding = 1;
-        let main_section_inner_top = bd_top + 3;
-        let main_section_inner_bottom = bd_bottom - 2;
-
-        let prompt_start = w_size.rows - 3;
-        let screen_division = w_size.columns / 2;
-
-        for y in 1..=bd_bottom {
-            queue!(stdout, MoveTo(bd_left, y), Print("║")).unwrap();
-            if y < prompt_start {
-                queue!(stdout, MoveTo(screen_division, y), Print("║")).unwrap();
-            }
-            queue!(stdout, MoveTo(bd_right, y), Print("║")).unwrap();
-        }
-        for x in 0..=bd_right {
-            let border_top = bd_top + 1;
-            let border_med = prompt_start;
-            let border_bot = bd_bottom;
-            if x == bd_left {
-                queue!(stdout, MoveTo(x, border_top), Print("╔")).unwrap();
-                queue!(stdout, MoveTo(x, border_med), Print("╠")).unwrap();
-                queue!(stdout, MoveTo(x, border_bot), Print("╚")).unwrap();
-            } else if x == screen_division {
-                queue!(stdout, MoveTo(x, border_top), Print("╦")).unwrap();
-                queue!(stdout, MoveTo(x, border_med), Print("╩")).unwrap();
-                queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
-            } else if x == bd_right {
-                queue!(stdout, MoveTo(x, border_top), Print("╗")).unwrap();
-                queue!(stdout, MoveTo(x, border_med), Print("╣")).unwrap();
-                queue!(stdout, MoveTo(x, border_bot), Print("╝")).unwrap();
-            } else {
-                queue!(stdout, MoveTo(x, border_top), Print("═")).unwrap();
-                queue!(stdout, MoveTo(x, border_med), Print("═")).unwrap();
-                queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
-            }
-        }
-        queue_section_title(1, 0, "System messages section");
-        queue_section_title(screen_division + 1, 0, "Minning section");
-
-        entries_renderer(
-            &outputs,
-            main_section_inner_top,
-            screen_division,
-            main_section_inner_bottom,
-            bd_left,
-            content_padding,
-        );
-        let sections = vec![
-            vec![
-                String::from("Status: "),
-                String::from("Hash rate: "),
-                String::from("Difficulty: "),
-            ],
-            vec![
-                String::from("Block: "),
-                String::from("Nonce: "),
-                String::from("Attempts: "),
-            ],
-            vec![
-                String::from("Last block: "),
-                String::from("Hash: "),
-                String::from("Time: "),
-            ],
-        ];
-
-        static_section_rendering(
-            screen_division,
-            main_section_inner_top,
-            content_padding,
-            sections,
-        );
-
-        let prompt_start = if prompt.len() >= bd_right as usize {
-            prompt.len() - (bd_right as usize - 1)
-        } else {
-            0
-        };
-
-        queue!(
-            stdout,
-            MoveTo(bd_left + 1, bd_bottom - 1),
-            Print(prompt.get(prompt_start..prompt.len()).unwrap())
-        )
-        .unwrap();
-
-        stdout.flush().unwrap();
-        sleep(Duration::from_millis(33));
+        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, &mut quit);
+        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
     }
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
+}
+
+fn handle_user_interaction(
+    in_tx: &Sender<String>,
+    w_size: &mut WindowSize,
+    prompt: &mut String,
+    quit: &mut bool,
+) {
+    while poll(Duration::ZERO).unwrap() {
+        match read().unwrap() {
+            Event::Key(key_event) => match key_event.code {
+                KeyCode::Backspace => {
+                    prompt.pop();
+                }
+                KeyCode::Enter => {
+                    in_tx.send(prompt.clone()).unwrap();
+                    *prompt = String::new();
+                }
+                KeyCode::Left => todo!(),
+                KeyCode::Right => todo!(),
+                KeyCode::Up => todo!(),
+                KeyCode::Down => todo!(),
+                KeyCode::Char(c) => {
+                    prompt.push(c);
+                }
+                KeyCode::Esc => {
+                    *quit = true;
+                }
+                _ => {}
+            },
+            Event::Paste(data) => {
+                in_tx.send(prompt.clone()).unwrap();
+                *prompt = prompt.clone().add(&data);
+            }
+            Event::Resize(w, h) => {
+                *w_size = WindowSize {
+                    rows: h,
+                    columns: w,
+                    width: w_size.width,
+                    height: w_size.height,
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn render_screen(
+    out_rx: &Receiver<String>,
+    stdout: &mut Stdout,
+    w_size: &WindowSize,
+    prompt: &str,
+    outputs: &mut Vec<String>,
+) {
+    queue!(stdout, Clear(ClearType::All)).unwrap();
+
+    if let Ok(output) = out_rx.try_recv() {
+        outputs.push(output);
+    }
+
+    let bd_left = 0;
+    let bd_top = 0;
+    let bd_right = w_size.columns - 1;
+    let bd_bottom = w_size.rows - 1;
+
+    let content_padding = 1;
+    let main_section_inner_top = bd_top + 3;
+    let main_section_inner_bottom = bd_bottom - 2;
+
+    let screen_division = w_size.columns / 2;
+
+    outer_box_rendering(
+        stdout,
+        bd_left,
+        bd_top,
+        bd_right,
+        bd_bottom,
+        screen_division,
+    );
+    queue_section_title(1, 0, "System messages section");
+    queue_section_title(screen_division + 1, 0, "Minning section");
+
+    entries_renderer(
+        &*outputs,
+        main_section_inner_top,
+        screen_division,
+        main_section_inner_bottom,
+        bd_left,
+        content_padding,
+    );
+    let sections = vec![
+        vec![
+            String::from("Status: "),
+            String::from("Hash rate: "),
+            String::from("Difficulty: "),
+        ],
+        vec![
+            String::from("Block: "),
+            String::from("Nonce: "),
+            String::from("Attempts: "),
+        ],
+        vec![
+            String::from("Last block: "),
+            String::from("Hash: "),
+            String::from("Time: "),
+        ],
+    ];
+
+    static_section_rendering(
+        screen_division,
+        main_section_inner_top,
+        content_padding,
+        sections,
+    );
+
+    let prompt_start = if prompt.len() >= bd_right as usize {
+        prompt.len() - (bd_right as usize - 1)
+    } else {
+        0
+    };
+
+    queue!(
+        stdout,
+        MoveTo(bd_left + 1, bd_bottom - 1),
+        Print(prompt.get(prompt_start..prompt.len()).unwrap())
+    )
+    .unwrap();
+
+    stdout.flush().unwrap();
+    sleep(Duration::from_millis(33));
+}
+
+fn outer_box_rendering(
+    stdout: &mut Stdout,
+    bd_left: u16,
+    bd_top: u16,
+    bd_right: u16,
+    bd_bottom: u16,
+    screen_division: u16,
+) {
+    let prompt_start = bd_bottom - 2;
+    for y in 1..=bd_bottom {
+        queue!(stdout, MoveTo(bd_left, y), Print("║")).unwrap();
+        if y < prompt_start {
+            queue!(stdout, MoveTo(screen_division, y), Print("║")).unwrap();
+        }
+        queue!(stdout, MoveTo(bd_right, y), Print("║")).unwrap();
+    }
+    for x in 0..=bd_right {
+        let border_top = bd_top + 1;
+        let border_med = prompt_start;
+        let border_bot = bd_bottom;
+        if x == bd_left {
+            queue!(stdout, MoveTo(x, border_top), Print("╔")).unwrap();
+            queue!(stdout, MoveTo(x, border_med), Print("╠")).unwrap();
+            queue!(stdout, MoveTo(x, border_bot), Print("╚")).unwrap();
+        } else if x == screen_division {
+            queue!(stdout, MoveTo(x, border_top), Print("╦")).unwrap();
+            queue!(stdout, MoveTo(x, border_med), Print("╩")).unwrap();
+            queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
+        } else if x == bd_right {
+            queue!(stdout, MoveTo(x, border_top), Print("╗")).unwrap();
+            queue!(stdout, MoveTo(x, border_med), Print("╣")).unwrap();
+            queue!(stdout, MoveTo(x, border_bot), Print("╝")).unwrap();
+        } else {
+            queue!(stdout, MoveTo(x, border_top), Print("═")).unwrap();
+            queue!(stdout, MoveTo(x, border_med), Print("═")).unwrap();
+            queue!(stdout, MoveTo(x, border_bot), Print("═")).unwrap();
+        }
+    }
 }
 
 fn static_section_rendering(
