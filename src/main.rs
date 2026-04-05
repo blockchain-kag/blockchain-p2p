@@ -7,7 +7,7 @@ use std::{
 };
 
 use crossterm::{
-    cursor::MoveTo,
+    cursor::{MoveDown, MoveLeft, MoveTo},
     event::{poll, read},
     execute, queue,
     style::Print,
@@ -26,8 +26,6 @@ fn main() {
     while !quit {
         while poll(Duration::ZERO).unwrap() {
             match read().unwrap() {
-                crossterm::event::Event::FocusGained => todo!(),
-                crossterm::event::Event::FocusLost => todo!(),
                 crossterm::event::Event::Key(key_event) => match key_event.code {
                     crossterm::event::KeyCode::Backspace => {
                         prompt.pop();
@@ -40,33 +38,14 @@ fn main() {
                     crossterm::event::KeyCode::Right => todo!(),
                     crossterm::event::KeyCode::Up => todo!(),
                     crossterm::event::KeyCode::Down => todo!(),
-                    crossterm::event::KeyCode::Home => todo!(),
-                    crossterm::event::KeyCode::End => todo!(),
-                    crossterm::event::KeyCode::PageUp => todo!(),
-                    crossterm::event::KeyCode::PageDown => todo!(),
-                    crossterm::event::KeyCode::Tab => todo!(),
-                    crossterm::event::KeyCode::BackTab => todo!(),
-                    crossterm::event::KeyCode::Delete => todo!(),
-                    crossterm::event::KeyCode::Insert => todo!(),
-                    crossterm::event::KeyCode::F(_) => todo!(),
                     crossterm::event::KeyCode::Char(c) => {
                         prompt.push(c);
                     }
-                    crossterm::event::KeyCode::Null => todo!(),
                     crossterm::event::KeyCode::Esc => {
                         quit = true;
                     }
-                    crossterm::event::KeyCode::CapsLock => todo!(),
-                    crossterm::event::KeyCode::ScrollLock => todo!(),
-                    crossterm::event::KeyCode::NumLock => todo!(),
-                    crossterm::event::KeyCode::PrintScreen => todo!(),
-                    crossterm::event::KeyCode::Pause => todo!(),
-                    crossterm::event::KeyCode::Menu => todo!(),
-                    crossterm::event::KeyCode::KeypadBegin => todo!(),
-                    crossterm::event::KeyCode::Media(_) => todo!(),
-                    crossterm::event::KeyCode::Modifier(_) => todo!(),
+                    _ => {}
                 },
-                crossterm::event::Event::Mouse(_) => todo!(),
                 crossterm::event::Event::Paste(data) => {
                     in_tx.send(prompt.clone()).unwrap();
                     prompt = prompt.add(&data);
@@ -79,6 +58,7 @@ fn main() {
                         height: w_size.height,
                     }
                 }
+                _ => {}
             }
         }
 
@@ -97,23 +77,7 @@ fn main() {
         let inner_left = 0;
 
         let content_padding = 1;
-        let logs_screen_bottom = inner_bottom - 2;
-        entries_renderer(
-            &outputs,
-            inner_top,
-            screen_division,
-            logs_screen_bottom,
-            inner_left,
-            content_padding,
-        );
-        entries_renderer(
-            &outputs,
-            inner_top,
-            inner_right,
-            logs_screen_bottom,
-            screen_division,
-            content_padding,
-        );
+        let main_section_iner = inner_bottom - 2;
 
         for y in 1..w_size.rows - 1 {
             queue!(stdout, MoveTo(0, y), Print("║")).unwrap();
@@ -144,6 +108,34 @@ fn main() {
         queue_section_title(1, 0, "System messages section");
         queue_section_title(screen_division + 1, 0, "Minning section");
 
+        entries_renderer(
+            &outputs,
+            inner_top,
+            screen_division,
+            main_section_iner,
+            inner_left,
+            content_padding,
+        );
+        let sections = vec![
+            vec![
+                String::from("Status: "),
+                String::from("Hash rate: "),
+                String::from("Difficulty: "),
+            ],
+            vec![
+                String::from("Block: "),
+                String::from("Nonce: "),
+                String::from("Attempts: "),
+            ],
+            vec![
+                String::from("Last block: "),
+                String::from("Hash: "),
+                String::from("Time: "),
+            ],
+        ];
+
+        static_section_rendering(screen_division, inner_top, content_padding, sections);
+
         let prompt_start = if prompt.len() > w_size.columns as usize {
             prompt.len() - (w_size.columns as usize - 2)
         } else {
@@ -162,6 +154,33 @@ fn main() {
     }
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
+}
+
+fn static_section_rendering(
+    left_boundary: u16,
+    top_boundary: u16,
+    padding: u16,
+    sections: Vec<Vec<String>>,
+) {
+    let mut stdout = stdout();
+    queue!(
+        stdout,
+        MoveTo(left_boundary + 1 + padding, top_boundary + padding)
+    )
+    .unwrap();
+
+    for section in sections {
+        for field in section {
+            queue!(
+                stdout,
+                Print(&field),
+                MoveDown(2),
+                MoveLeft(field.len() as u16)
+            )
+            .unwrap()
+        }
+        queue!(stdout, MoveDown(1)).unwrap();
+    }
 }
 
 fn entries_renderer(
