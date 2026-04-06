@@ -101,6 +101,80 @@ async fn cli_send(args: &[String]) {
     }
 }
 
+async fn cli_balance(args: &[String]) {
+    if args.len() != 2 {
+        eprintln!("Usage: balance <node_url> <address>");
+        return;
+    }
+    let node_url = args[0].trim_end_matches('/');
+    let address = &args[1];
+    let client = reqwest::Client::new();
+    match client
+        .get(format!("{node_url}/balance/{address}"))
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let body: serde_json::Value = resp.json().await.unwrap_or(json!({}));
+            println!("{body}");
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+async fn cli_mine(args: &[String]) {
+    if args.len() != 1 {
+        eprintln!("Usage: mine <node_url>");
+        return;
+    }
+    let node_url = args[0].trim_end_matches('/');
+    let client = reqwest::Client::new();
+    match client
+        .post(format!("{node_url}/mine"))
+        .json(&json!({}))
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let body: serde_json::Value = resp.json().await.unwrap_or(json!({}));
+            println!("{body}");
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+async fn cli_peers(args: &[String]) {
+    if args.len() != 1 {
+        eprintln!("Usage: peers <node_url>");
+        return;
+    }
+    let node_url = args[0].trim_end_matches('/');
+    let client = reqwest::Client::new();
+    match client.get(format!("{node_url}/peers")).send().await {
+        Ok(resp) => {
+            let body: serde_json::Value = resp.json().await.unwrap_or(json!({}));
+            println!("{body}");
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
+async fn cli_chain(args: &[String]) {
+    if args.len() != 1 {
+        eprintln!("Usage: chain <node_url>");
+        return;
+    }
+    let node_url = args[0].trim_end_matches('/');
+    let client = reqwest::Client::new();
+    match client.get(format!("{node_url}/status")).send().await {
+        Ok(resp) => {
+            let body: serde_json::Value = resp.json().await.unwrap_or(json!({}));
+            println!("{body}");
+        }
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
+
 async fn run_node(port: u16) {
     let node_url =
         std::env::var("NODE_URL").unwrap_or_else(|_| format!("http://127.0.0.1:{port}"));
@@ -150,17 +224,25 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     match args.get(1).map(|s| s.as_str()) {
-        Some("wallet") => cli_wallet(),
-        Some("send") => cli_send(&args[2..]).await,
-        Some(port_str) => {
+        Some("wallet")  => cli_wallet(),
+        Some("send")    => cli_send(&args[2..]).await,
+        Some("balance") => cli_balance(&args[2..]).await,
+        Some("mine")    => cli_mine(&args[2..]).await,
+        Some("peers")   => cli_peers(&args[2..]).await,
+        Some("chain")   => cli_chain(&args[2..]).await,
+        Some(port_str)  => {
             let port: u16 = port_str.parse().expect("invalid port number");
             run_node(port).await;
         }
         None => {
             eprintln!("Usage:");
-            eprintln!("  blockchain-p2p <port>                                  Run node");
-            eprintln!("  blockchain-p2p wallet                                  Generate wallet");
-            eprintln!("  blockchain-p2p send <node_url> <to> <amount> <privkey> Send tx");
+            eprintln!("  blockchain-p2p <port>                                     Run node");
+            eprintln!("  blockchain-p2p wallet                                     Generate wallet");
+            eprintln!("  blockchain-p2p send    <node_url> <to> <amount> <privkey> Send transaction");
+            eprintln!("  blockchain-p2p balance <node_url> <address>               Check balance");
+            eprintln!("  blockchain-p2p mine    <node_url>                         Trigger mining");
+            eprintln!("  blockchain-p2p peers   <node_url>                         List peers");
+            eprintln!("  blockchain-p2p chain   <node_url>                         Chain status");
         }
     }
 }

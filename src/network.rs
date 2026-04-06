@@ -99,29 +99,50 @@ pub async fn bootstrap(state: &Shared, seeds: &[String]) {
             }
         }
 
-        if let Ok(resp) = client
+        // 3. Register ourselves with seed, get its peer list
+        let discovered_peers: Vec<String> = if let Ok(resp) = client
             .post(format!("{seed}/peers"))
             .json(&json!({"url": node_url}))
             .send()
             .await
         {
             if let Ok(data) = resp.json::<Value>().await {
+                let peers: Vec<String> = data
+                    .get("peers")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|p| p.as_str())
+                            .map(|u| u.trim_end_matches('/').to_string())
+                            .filter(|u| u != &node_url)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
                 let mut s = state.lock().unwrap();
-                if let Some(arr) = data.get("peers").and_then(|v| v.as_array()) {
-                    for p in arr {
-                        if let Some(url) = p.as_str() {
-                            let url = url.trim_end_matches('/').to_string();
-                            if url != node_url {
-                                s.peers.insert(url);
-                            }
-                        }
-                    }
+                for p in &peers {
+                    s.peers.insert(p.clone());
                 }
                 s.peers.insert(seed.to_string());
+                peers
+            } else {
+                vec![]
             }
+        } else {
+            vec![]
+        };
+
+        // 4. Also register ourselves with every peer we discovered
+        //    so they know we exist and will send us blocks
+        for peer in &discovered_peers {
+            let _ = client
+                .post(format!("{peer}/peers"))
+                .json(&json!({"url": node_url}))
+                .send()
+                .await;
         }
 
-        println!("[bootstrap] OK from {seed}");
+        println!("[bootstrap] OK from {seed}, discovered {} peers", discovered_peers.len());
         break;
     }
 }

@@ -245,7 +245,13 @@ pub async fn post_peers(State(state): State<Shared>, Json(body): Json<Value>) ->
     if !url.is_empty() && url != s.node_url {
         s.peers.insert(url.clone());
     }
-    let list: Vec<String> = s.peers.iter().cloned().collect();
+    // Return peers excluding the one that just registered (they don't need themselves)
+    let list: Vec<String> = s
+        .peers
+        .iter()
+        .filter(|p| p.as_str() != url.as_str())
+        .cloned()
+        .collect();
     Json(json!({
         "status": "ok",
         "registered": url,
