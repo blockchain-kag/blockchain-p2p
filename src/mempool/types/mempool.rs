@@ -1,7 +1,13 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
-    common::types::tx::{Tx, TxOutput},
+    common::{
+        ports::{crypto::Crypto, hasher::Hasher},
+        types::{
+            block::Block,
+            tx::{Hash, Tx, TxOutput},
+        },
+    },
     node::ports::storage::UtxoKey,
 };
 
@@ -16,29 +22,32 @@ impl Mempool {
         Self::default()
     }
 
-    pub fn get_first_n(&mut self, n: usize) -> VecDeque<Tx> {
-        let mut result = VecDeque::new();
-
-        for _ in 0..n {
-            match self.transactions.pop_front() {
-                Some(tx) => {
-                    for input in &tx.inputs {
-                        self.spent
-                            .remove(&UtxoKey(input.prev_tx, input.output_index));
-                    }
-
-                    result.push_back(tx);
-                }
-                None => break,
-            }
-        }
-
-        result
+    pub fn peek_first_n(&self, n: usize) -> VecDeque<Tx> {
+        self.transactions.iter().take(n).cloned().collect()
     }
 
-    pub fn push(&mut self, tx: Tx, utxo_map: &HashMap<UtxoKey, TxOutput>) -> bool {
-        if !self.is_tx_valid(&tx, utxo_map) {
-            return false;
+    pub fn remove_included_txs(&mut self, block: &Block, hasher: &dyn Hasher) {
+        let tx_hashes: HashSet<Hash> = block.txs.iter().map(|tx| tx.hash(hasher)).collect();
+        self.transactions
+            .retain(|tx| !tx_hashes.contains(&tx.hash(hasher)));
+        self.spent.clear();
+        for tx in &self.transactions {
+            for input in &tx.inputs {
+                self.spent
+                    .insert(UtxoKey(input.prev_tx, input.output_index));
+            }
+        }
+    }
+
+    pub fn push(
+        &mut self,
+        tx: Tx,
+        utxo_map: &HashMap<UtxoKey, TxOutput>,
+        crypto: &dyn Crypto,
+        hasher: &dyn Hasher,
+    ) {
+        if !self.is_tx_valid(&tx, utxo_map, crypto, hasher) {
+            return;
         }
 
         for input in &tx.inputs {
@@ -47,16 +56,59 @@ impl Mempool {
         }
 
         self.transactions.push_back(tx);
-        true
     }
 
-    pub fn is_tx_valid(&self, tx: &Tx, utxo_map: &HashMap<UtxoKey, TxOutput>) -> bool {
+    pub fn push_n(
+        &mut self,
+        txs: Vec<Tx>,
+        utxo_map: &HashMap<UtxoKey, TxOutput>,
+        crypto: &dyn Crypto,
+        hasher: &dyn Hasher,
+    ) {
+        for tx in txs {
+            self.push(tx, utxo_map, crypto, hasher)
+        }
+    }
+
+    pub fn is_tx_valid(
+        &self,
+        tx: &Tx,
+        utxo_map: &HashMap<UtxoKey, TxOutput>,
+        crypto: &dyn Crypto,
+        hasher: &dyn Hasher,
+    ) -> bool {
         any_input_and_output(tx)
             && is_transfering_something(tx)
             && does_input_exists_and_is_unique(tx, utxo_map, &self.spent)
             && has_superavit(tx, utxo_map)
+            && check_transactions_signature(tx, utxo_map, crypto, hasher)
     }
 }
+
+fn check_transactions_signature(
+    tx: &Tx,
+    utxo_map: &HashMap<UtxoKey, TxOutput>,
+    crypto: &dyn Crypto,
+    hasher: &dyn Hasher,
+) -> bool {
+    let message = tx.hash(hasher);
+
+    tx.inputs.iter().all(|input| {
+        let key = UtxoKey(input.prev_tx, input.output_index);
+
+        let utxo = match utxo_map.get(&key) {
+            Some(u) => u,
+            None => return false,
+        };
+
+        if input.pubkey != utxo.recipient {
+            return false;
+        }
+
+        crypto.verify(&input.pubkey, &message.0, &input.signature)
+    })
+}
+
 fn any_input_and_output(tx: &Tx) -> bool {
     !tx.inputs.is_empty() && !tx.outputs.is_empty()
 }

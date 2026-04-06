@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     common::{
-        ports::hasher::Hasher,
+        ports::{crypto::Crypto, hasher::Hasher},
         types::{
             tx::{Tx, TxInput, TxOutput},
             wallet::Wallet,
@@ -33,7 +33,8 @@ pub struct Node {
     storage: Box<dyn Storage>,
     consensus_engine: ConsensusEngine,
     hasher: Arc<dyn Hasher>,
-    wallet: Box<dyn Wallet>,
+    crypto: Arc<dyn Crypto>,
+    wallet: Wallet,
 }
 
 const MAX_TX_PER_BLOCK: usize = 10;
@@ -48,8 +49,9 @@ impl Node {
         storage: Box<dyn Storage>,
         consensus_engine: ConsensusEngine,
         hasher: Arc<dyn Hasher>,
-        wallet: Box<dyn Wallet>,
+        crypto: Arc<dyn Crypto>,
     ) -> Self {
+        let wallet = Wallet::new(crypto.clone());
         Self {
             event_stream,
             shutdown,
@@ -58,6 +60,7 @@ impl Node {
             storage,
             consensus_engine,
             hasher,
+            crypto,
             wallet,
         }
     }
@@ -89,7 +92,8 @@ impl Node {
                 return ControlFlow::Break(());
             }
             NodeCommand::SaveTransaction(tx) => {
-                self.mempool.push(tx, utxo_map);
+                self.mempool
+                    .push(tx, utxo_map, self.crypto.as_ref(), self.hasher.as_ref());
                 todo!("Do network broadcast of txs")
             }
             NodeCommand::SaveBlock(block) => {
@@ -111,7 +115,7 @@ impl Node {
                 todo!("Do network broadcast of block");
             }
             NodeCommand::StartMining(miners) => {
-                let txs = self.mempool.get_first_n(MAX_TX_PER_BLOCK);
+                let txs = self.mempool.peek_first_n(MAX_TX_PER_BLOCK);
                 let last_block = self.storage.get_tip().unwrap();
                 self.consensus_engine
                     .start_mining(txs, last_block, self.hasher.as_ref(), miners)
@@ -142,8 +146,13 @@ impl Node {
                     inputs: unsigned_inputs,
                     outputs,
                 }
-                .sign(self.hasher.as_ref(), self.wallet.as_ref());
-                self.mempool.push(tx.clone(), self.storage.get_utxo_map());
+                .sign(self.hasher.as_ref(), self.crypto.as_ref());
+                self.mempool.push(
+                    tx.clone(),
+                    self.storage.get_utxo_map(),
+                    self.crypto.as_ref(),
+                    self.hasher.as_ref(),
+                );
                 todo!("Networking of tx && change management")
             }
             NodeCommand::StartSyncing => {
@@ -157,7 +166,7 @@ impl Node {
         self.consensus_engine.stop_mining().unwrap();
         self.consensus_engine
             .start_mining(
-                self.mempool.get_first_n(MAX_TX_PER_BLOCK),
+                self.mempool.peek_first_n(MAX_TX_PER_BLOCK),
                 self.storage.get_tip().unwrap(),
                 self.hasher.as_ref(),
                 BLOCK_MINERS,

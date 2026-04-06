@@ -1,4 +1,4 @@
-use crate::common::{ports::hasher::Hasher, types::wallet::Wallet};
+use crate::common::ports::{crypto::Crypto, hasher::Hasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -38,7 +38,7 @@ impl Tx {
         Self { inputs, outputs }
     }
 
-    pub fn sign(self, hasher: &dyn Hasher, wallet: &dyn Wallet) -> Self {
+    pub fn sign(self, hasher: &dyn Hasher, crypto: &dyn Crypto) -> Self {
         let msg = self.hash(hasher).0;
         let inputs = self
             .inputs
@@ -46,7 +46,7 @@ impl Tx {
             .map(|input| TxInput {
                 prev_tx: input.prev_tx,
                 output_index: input.output_index,
-                signature: wallet.sign(input.pubkey.as_ref(), msg.as_ref()),
+                signature: crypto.sign(input.pubkey.as_ref(), msg.as_ref()),
                 pubkey: input.pubkey.clone(),
             })
             .collect();

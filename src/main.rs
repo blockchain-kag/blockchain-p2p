@@ -56,6 +56,7 @@ fn main() {
         storage,
         consensus_engine,
         hasher.clone(),
+        "",
     )
     .run();
     while !shutdown.clone().load(Ordering::Relaxed) {

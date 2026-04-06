@@ -35,6 +35,6 @@ impl MinerHandle {
     }
 }
 
-pub trait Miner {
+pub trait Miner: Send + Sync {
     fn spawn(&self) -> Result<MinerHandle, String>;
 }
