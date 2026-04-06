@@ -103,10 +103,9 @@ impl Node {
                         };
                     }
                     None => {
-                        self.storage
-                            .insert_block(block, self.hasher.as_ref())
+                        self.emmitter
+                            .send("No genesis block found".to_string())
                             .unwrap();
-                        self.restart_mining();
                     }
                 }
                 todo!("Do network broadcast of block");
