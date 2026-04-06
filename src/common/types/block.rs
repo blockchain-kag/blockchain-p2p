@@ -10,18 +10,18 @@ use std::{
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BlockHeader {
-    pub version: u32,
+    pub height: u32,
+    pub timestamp: u64,
     pub prev_hash: Hash,
     pub nonce: u64,
     pub merkle_root: Hash,
-    pub timestamp: u64,
 }
 
 impl BlockHeader {
     pub fn hash(&self, hasher: &dyn Hasher) -> Hash {
         let mut data = Vec::new();
 
-        data.extend_from_slice(&self.version.to_be_bytes());
+        data.extend_from_slice(&self.height.to_be_bytes());
         data.extend_from_slice(&self.prev_hash.0);
         data.extend_from_slice(&self.nonce.to_be_bytes());
         data.extend_from_slice(&self.merkle_root.0);
@@ -53,35 +53,14 @@ impl Block {
         hasher: &dyn Hasher,
     ) -> Self {
         let merkle_root = Self::generate_merkle_root(hasher, &Vec::from(txs.clone()));
-        Block {
-            header: BlockHeader {
-                version,
-                prev_hash,
-                nonce,
-                merkle_root,
-                timestamp: current_timestamp(),
-            },
-            txs,
-        }
-    }
-
-    pub fn new_with_merkle_root(
-        version: u32,
-        prev_hash: Hash,
-        nonce: u64,
-        txs: VecDeque<Tx>,
-        merkle_root: Hash,
-    ) -> Self {
-        Block {
-            header: BlockHeader {
-                version,
-                prev_hash,
-                nonce,
-                merkle_root,
-                timestamp: current_timestamp(),
-            },
-            txs,
-        }
+        let header = BlockHeader {
+            height: version,
+            prev_hash,
+            nonce,
+            merkle_root,
+            timestamp: current_timestamp(),
+        };
+        Block { header, txs }
     }
 
     fn generate_merkle_root(hasher: &dyn Hasher, txs: &[Tx]) -> Hash {

@@ -9,14 +9,14 @@ use std::{
 };
 
 use crate::{
-    common::ports::hasher::Hasher,
+    common::{ports::hasher::Hasher, types::tx::Tx},
     consensus_engine::types::consensus_engine::ConsensusEngine,
     mempool::types::mempool::Mempool,
-    node::{ports::storage::Storage, types::node_event::NodeEvent},
+    node::{ports::storage::Storage, types::node_command::NodeCommand},
 };
 
 pub struct Node {
-    event_stream: Receiver<NodeEvent>,
+    event_stream: Receiver<NodeCommand>,
     shutdown: Arc<AtomicBool>,
     emmitter: Sender<String>,
     mempool: Mempool,
@@ -25,9 +25,11 @@ pub struct Node {
     hasher: Arc<dyn Hasher>,
 }
 
+const MAX_TX_PER_BLOCK: usize = 10;
+
 impl Node {
     pub fn new(
-        event_stream: Receiver<NodeEvent>,
+        event_stream: Receiver<NodeCommand>,
         shutdown: Arc<AtomicBool>,
         emmitter: Sender<String>,
         mempool: Mempool,
@@ -61,17 +63,17 @@ impl Node {
         })
     }
 
-    fn manage_event(&mut self, event: NodeEvent) -> ControlFlow<()> {
+    fn manage_event(&mut self, event: NodeCommand) -> ControlFlow<()> {
         match event {
-            NodeEvent::ListCommands => {
+            NodeCommand::Help => {
                 self.emmitter.send(String::from("quit & help")).unwrap();
             }
-            NodeEvent::Quit => {
+            NodeCommand::Quit => {
                 self.shutdown.store(true, Ordering::Relaxed);
                 return ControlFlow::Break(());
             }
-            NodeEvent::NewTransaction(tx) => self.mempool.push(tx),
-            NodeEvent::NewBlock(block) => match self.storage.get_tip() {
+            NodeCommand::SaveTransaction(tx) => self.mempool.push(tx),
+            NodeCommand::SaveBlock(block) => match self.storage.get_tip() {
                 Some(prev_block) => {
                     if self.consensus_engine.validate(prev_block, &block) {
                         self.storage.insert_block(block, &*self.hasher).unwrap();
@@ -81,17 +83,20 @@ impl Node {
                     self.storage.insert_block(block, &*self.hasher).unwrap();
                 }
             },
-            NodeEvent::StartMining(miners) => {
-                let txs = self.mempool.get_first_n(10);
+            NodeCommand::StartMining(miners) => {
+                let txs = self.mempool.get_first_n(MAX_TX_PER_BLOCK);
                 let last_block = self.storage.get_tip().unwrap();
                 self.consensus_engine
                     .start_mining(txs, last_block, self.hasher.as_ref(), miners)
                     .unwrap();
             }
-            NodeEvent::PauseMining => self.consensus_engine.pause_mining().unwrap(),
-            NodeEvent::ContinueMining => self.consensus_engine.resume_mining().unwrap(),
-            NodeEvent::StopMining => self.consensus_engine.stop_mining().unwrap(),
-            NodeEvent::Sync => todo!(),
+            NodeCommand::PauseMining => self.consensus_engine.pause_mining().unwrap(),
+            NodeCommand::ResumeMining => self.consensus_engine.resume_mining().unwrap(),
+            NodeCommand::StopMining => self.consensus_engine.stop_mining().unwrap(),
+            NodeCommand::StartSyncing => todo!(),
+            NodeCommand::Transfer(_, _) => {
+                todo!();
+            }
         }
         ControlFlow::Continue(())
     }

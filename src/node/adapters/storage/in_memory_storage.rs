@@ -1,11 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{
     common::{
         ports::hasher::Hasher,
-        types::{block::Block, tx::Hash},
+        types::{
+            block::Block,
+            tx::{Hash, Tx, TxOutput},
+        },
     },
-    node::ports::storage::Storage,
+    node::ports::storage::{Storage, UtxoKey},
 };
 
 #[derive(Default)]
@@ -13,12 +16,31 @@ pub struct InMemoryStorage {
     height: HashMap<Hash, u64>,
     blocks: HashMap<Hash, Block>,
     tip: Option<Hash>,
+    utxo_map: HashMap<UtxoKey, TxOutput>,
 }
 
 impl InMemoryStorage {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(hasher: &dyn Hasher) -> Self {
+        let genesis_block = Block::new(0, Hash::zero(), 0, VecDeque::new(), hasher);
+        let hash = genesis_block.hash(hasher);
+        Self {
+            height: HashMap::from([(hash, 0)]),
+            blocks: HashMap::from([(hash, genesis_block.clone())]),
+            tip: Some(hash),
+            utxo_map: from_queue_to_utxo_map(genesis_block.txs, hasher),
+        }
     }
+}
+
+fn from_queue_to_utxo_map(queue: VecDeque<Tx>, hasher: &dyn Hasher) -> HashMap<UtxoKey, TxOutput> {
+    let mut map = HashMap::new();
+    for tx in queue {
+        let hash = tx.hash(hasher);
+        for (index, tx_output) in tx.outputs.iter().enumerate() {
+            map.insert(UtxoKey(hash, index), tx_output.to_owned());
+        }
+    }
+    map
 }
 
 impl Storage for InMemoryStorage {
@@ -69,5 +91,25 @@ impl Storage for InMemoryStorage {
         }
 
         Ok(())
+    }
+
+    fn get_utxo(&self, key: &UtxoKey) -> Option<&TxOutput> {
+        self.utxo_map.get(key)
+    }
+
+    fn contains_utxo(&self, key: &UtxoKey) -> bool {
+        self.utxo_map.contains_key(key)
+    }
+
+    fn apply_tx(&mut self, tx: &Tx, hasher: &dyn Hasher) {
+        let tx_hash = tx.hash(hasher);
+        for input in &tx.inputs {
+            self.utxo_map
+                .remove(&UtxoKey(input.prev_tx, input.output_index));
+        }
+
+        for (i, output) in tx.outputs.iter().enumerate() {
+            self.utxo_map.insert(UtxoKey(tx_hash, i), output.clone());
+        }
     }
 }

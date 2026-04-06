@@ -1,14 +1,23 @@
 use crate::common::{
     ports::hasher::Hasher,
-    types::{block::Block, tx::Hash},
+    types::{
+        block::Block,
+        tx::{Hash, Tx, TxOutput},
+    },
 };
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct UtxoKey(pub Hash, pub usize);
+
 pub trait Storage: Send {
+    // blocks
     fn get_block(&self, hash: &Hash) -> Option<&Block>;
-
     fn get_height(&self, hash: &Hash) -> Option<u64>;
-
     fn get_tip(&self) -> Option<&Block>;
-
     fn insert_block(&mut self, block: Block, hasher: &dyn Hasher) -> Result<(), String>;
+
+    // UTXO
+    fn get_utxo(&self, key: &UtxoKey) -> Option<&TxOutput>;
+    fn contains_utxo(&self, key: &UtxoKey) -> bool;
+    fn apply_tx(&mut self, tx: &Tx, hasher: &dyn Hasher);
 }

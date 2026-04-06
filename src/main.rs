@@ -19,7 +19,7 @@ use blockchain_p2p::{
             hasher::sha256_hasher::Sha256Hasher,
             storage::in_memory_storage::InMemoryStorage,
         },
-        types::{node::Node, node_event::NodeEvent, node_event_handler::NodeEventHandler},
+        types::{node::Node, node_command::NodeCommand, node_command_handler::NodeCommandHandler},
     },
 };
 use crossterm::{
@@ -32,9 +32,9 @@ use crossterm::{
 
 fn main() {
     let (in_tx, in_rx) = channel::<String>();
-    let (event_tx, event_rx) = channel::<NodeEvent>();
+    let (event_tx, event_rx) = channel::<NodeCommand>();
     let (out_tx, out_rx) = channel::<String>();
-    let _input_handle = NodeEventHandler::new(in_rx, event_tx).run();
+    let _input_handle = NodeCommandHandler::new(in_rx, event_tx, out_tx.clone()).run();
     let mut stdout = stdout();
     let mut w_size: WindowSize = terminal::window_size().unwrap();
     let mut prompt = String::new();
@@ -42,9 +42,9 @@ fn main() {
     terminal::enable_raw_mode().unwrap();
     let shutdown = Arc::new(AtomicBool::from(false));
     let mempool = Mempool::new();
-    let storage = Box::new(InMemoryStorage::new());
-    let difficulty = 3;
     let hasher = Arc::new(Sha256Hasher);
+    let storage = Box::new(InMemoryStorage::new(hasher.as_ref()));
+    let difficulty = 3;
     let miner = Box::new(CpuMiner::new(hasher.clone()));
     let validator = Box::new(MultipleValidator::new());
     let consensus_engine = ConsensusEngine::new(miner, validator, difficulty);
@@ -63,7 +63,6 @@ fn main() {
         render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
     }
     render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
-
     sleep(Duration::from_secs(1));
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
