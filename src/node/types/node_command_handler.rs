@@ -63,8 +63,7 @@ fn parse_command(input: &str) -> Result<NodeCommand, String> {
                 return Err("Recipients and amounts must match".to_string());
             }
 
-            let transfers: Vec<(String, u64)> =
-                recipients.into_iter().zip(amounts.into_iter()).collect();
+            let transfers: Vec<(String, u64)> = recipients.into_iter().zip(amounts).collect();
 
             let fee: u64 = parsed.next().unwrap_or("0").trim().parse().unwrap();
 

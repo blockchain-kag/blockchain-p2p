@@ -37,6 +37,7 @@ pub struct Node {
 }
 
 const MAX_TX_PER_BLOCK: usize = 10;
+const BLOCK_MINERS: usize = 5;
 
 impl Node {
     pub fn new(
@@ -77,29 +78,39 @@ impl Node {
     }
 
     fn manage_event(&mut self, event: NodeCommand) -> ControlFlow<()> {
+        let utxo_map = self.storage.get_utxo_map();
         match event {
             NodeCommand::Help => {
-                self.emmitter.send(String::from("quit & help")).unwrap();
+                let comment: String = todo!("Write help comment");
+                self.emmitter.send(String::from(comment)).unwrap();
             }
             NodeCommand::Quit => {
                 self.shutdown.store(true, Ordering::Relaxed);
                 return ControlFlow::Break(());
             }
             NodeCommand::SaveTransaction(tx) => {
-                self.mempool.push(tx, self.storage.get_utxo_map());
+                self.mempool.push(tx, utxo_map);
+                todo!("Do network broadcast of txs")
             }
-            NodeCommand::SaveBlock(block) => match self.storage.get_tip() {
-                Some(prev_block) => {
-                    if self.consensus_engine.is_block_valid(prev_block, &block) {
+            NodeCommand::SaveBlock(block) => {
+                match self.storage.get_tip() {
+                    Some(prev_block) => {
+                        if self.consensus_engine.is_block_valid(prev_block, &block) {
+                            self.storage
+                                .insert_block(block, self.hasher.as_ref())
+                                .unwrap();
+                            self.restart_mining();
+                        };
+                    }
+                    None => {
                         self.storage
                             .insert_block(block, self.hasher.as_ref())
                             .unwrap();
-                    };
+                        self.restart_mining();
+                    }
                 }
-                None => {
-                    self.storage.insert_block(block, &*self.hasher).unwrap();
-                }
-            },
+                todo!("Do network broadcast of block");
+            }
             NodeCommand::StartMining(miners) => {
                 let txs = self.mempool.get_first_n(MAX_TX_PER_BLOCK);
                 let last_block = self.storage.get_tip().unwrap();
@@ -113,7 +124,7 @@ impl Node {
             NodeCommand::Transfer(transfers, fee) => {
                 let total_output: u64 = transfers.iter().map(|(_, amt)| amt).sum();
                 let (unsigned_inputs, total_input) =
-                    select_utxos(total_output + fee, self.storage.get_utxo_map()).unwrap();
+                    select_utxos(total_output + fee, utxo_map).unwrap();
                 let mut outputs: Vec<TxOutput> = transfers
                     .iter()
                     .map(|transfer| TxOutput {
@@ -137,10 +148,22 @@ impl Node {
                 todo!("Networking of tx && change management")
             }
             NodeCommand::StartSyncing => {
-                todo!()
+                todo!("Netowrk syncing")
             }
         }
         ControlFlow::Continue(())
+    }
+
+    fn restart_mining(&mut self) {
+        self.consensus_engine.stop_mining().unwrap();
+        self.consensus_engine
+            .start_mining(
+                self.mempool.get_first_n(MAX_TX_PER_BLOCK),
+                self.storage.get_tip().unwrap(),
+                self.hasher.as_ref(),
+                BLOCK_MINERS,
+            )
+            .unwrap();
     }
 }
 
