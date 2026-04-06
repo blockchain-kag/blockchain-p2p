@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    common::{ports::hasher::Hasher, types::tx::Tx},
+    common::ports::hasher::Hasher,
     consensus_engine::types::consensus_engine::ConsensusEngine,
     mempool::types::mempool::Mempool,
     node::{ports::storage::Storage, types::node_command::NodeCommand},

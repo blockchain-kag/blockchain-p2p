@@ -2,6 +2,7 @@ use crate::{
     common::types::block::Block, consensus_engine::ports::block_validator::BlockValidator,
 };
 
+#[derive(Default)]
 pub struct MultipleValidator {
     validators: Vec<Box<dyn BlockValidator + Send + Sync>>,
 }
@@ -16,6 +17,6 @@ impl BlockValidator for MultipleValidator {
 
 impl MultipleValidator {
     pub fn new() -> Self {
-        Self { validators: vec![] }
+        Self::default()
     }
 }
