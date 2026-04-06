@@ -3,7 +3,7 @@ use crate::common::types::{block::Block, tx::Tx};
 pub enum NodeCommand {
     Quit,
     Help,
-    Transfer(String, u64),
+    Transfer(Vec<(String, u64)>, u64),
     SaveTransaction(Tx),
     SaveBlock(Block),
     StartMining(usize),

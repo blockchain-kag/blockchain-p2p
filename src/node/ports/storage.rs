@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::common::{
     ports::hasher::Hasher,
     types::{
@@ -6,7 +8,7 @@ use crate::common::{
     },
 };
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct UtxoKey(pub Hash, pub usize);
 
 pub trait Storage: Send {
@@ -17,6 +19,7 @@ pub trait Storage: Send {
     fn insert_block(&mut self, block: Block, hasher: &dyn Hasher) -> Result<(), String>;
 
     // UTXO
+    fn get_utxo_map(&self) -> &HashMap<UtxoKey, TxOutput>;
     fn get_utxo(&self, key: &UtxoKey) -> Option<&TxOutput>;
     fn contains_utxo(&self, key: &UtxoKey) -> bool;
     fn apply_tx(&mut self, tx: &Tx, hasher: &dyn Hasher);

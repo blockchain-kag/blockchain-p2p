@@ -112,4 +112,8 @@ impl Storage for InMemoryStorage {
             self.utxo_map.insert(UtxoKey(tx_hash, i), output.clone());
         }
     }
+
+    fn get_utxo_map(&self) -> &HashMap<UtxoKey, TxOutput> {
+        &self.utxo_map
+    }
 }

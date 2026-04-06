@@ -1,4 +1,4 @@
-use crate::common::ports::hasher::Hasher;
+use crate::common::{ports::hasher::Hasher, types::wallet::Wallet};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -10,20 +10,21 @@ impl Hash {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TxOutput {
     pub amount: u64,
     pub recipient: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct TxInput {
     pub prev_tx: Hash,
     pub output_index: usize,
     pub signature: Vec<u8>,
+    pub pubkey: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Tx {
     pub inputs: Vec<TxInput>,
     pub outputs: Vec<TxOutput>,
@@ -35,6 +36,24 @@ impl Tx {
     }
     pub fn new(inputs: Vec<TxInput>, outputs: Vec<TxOutput>) -> Self {
         Self { inputs, outputs }
+    }
+
+    pub fn sign(self, hasher: &dyn Hasher, wallet: &dyn Wallet) -> Self {
+        let msg = self.hash(hasher).0;
+        let inputs = self
+            .inputs
+            .iter()
+            .map(|input| TxInput {
+                prev_tx: input.prev_tx,
+                output_index: input.output_index,
+                signature: wallet.sign(input.pubkey.as_ref(), msg.as_ref()),
+                pubkey: input.pubkey.clone(),
+            })
+            .collect();
+        Tx {
+            inputs,
+            outputs: self.outputs,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
