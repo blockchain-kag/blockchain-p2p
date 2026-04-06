@@ -5,7 +5,7 @@ pub enum NodeEvent {
     Quit,
     NewTransaction(Tx),
     NewBlock(Block),
-    StartMining,
+    StartMining(usize),
     PauseMining,
     ContinueMining,
     StopMining,

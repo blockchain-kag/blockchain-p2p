@@ -3,7 +3,7 @@ use crate::common::{
     types::{block::Block, tx::Hash},
 };
 
-pub trait Storage {
+pub trait Storage: Send {
     fn get_block(&self, hash: &Hash) -> Option<&Block>;
 
     fn get_height(&self, hash: &Hash) -> Option<u64>;

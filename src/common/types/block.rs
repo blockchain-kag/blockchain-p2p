@@ -93,8 +93,8 @@ impl Block {
 
         while hashes.len() > 1 {
             if hashes.len() % 2 == 1 {
-                let last = hashes.last().unwrap().clone();
-                hashes.push(last);
+                let last = hashes.last().unwrap();
+                hashes.push(*last);
             }
 
             let mut next = Vec::new();
@@ -110,7 +110,7 @@ impl Block {
             hashes = next;
         }
 
-        hashes[0].clone()
+        hashes[0]
     }
 
     pub fn hash(&self, hasher: &dyn Hasher) -> Hash {

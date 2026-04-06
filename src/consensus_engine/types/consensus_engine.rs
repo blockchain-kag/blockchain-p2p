@@ -7,22 +7,21 @@ use crate::consensus_engine::ports::block_validator::BlockValidator;
 use crate::consensus_engine::ports::miner::{Miner, MinerCommand, MinerHandle};
 
 pub struct ConsensusEngine {
-    miner: Box<dyn Miner>,
+    miner: Box<dyn Miner + Send + Sync>,
     miner_handlers: Vec<MinerHandle>,
-    validator: Box<dyn BlockValidator>,
+    validator: Box<dyn BlockValidator + Send + Sync>,
     difficulty: usize,
 }
 
 impl ConsensusEngine {
     pub fn new(
-        miner: Box<dyn Miner>,
-        miner_handlers: Vec<MinerHandle>,
-        validator: Box<dyn BlockValidator>,
+        miner: Box<dyn Miner + Send + Sync>,
+        validator: Box<dyn BlockValidator + Send + Sync>,
         difficulty: usize,
     ) -> Self {
         Self {
             miner,
-            miner_handlers,
+            miner_handlers: vec![],
             validator,
             difficulty,
         }
@@ -37,11 +36,11 @@ impl ConsensusEngine {
         txs: VecDeque<Tx>,
         last_block: &Block,
         hasher: &dyn Hasher,
-        workers: usize,
+        miners: usize,
     ) -> Result<(), ()> {
         let block = Block::new(0, last_block.header.hash(hasher), 0, txs, hasher);
 
-        for _ in 0..(self.miner_handlers.len() - workers) {
+        for _ in 0..(self.miner_handlers.len() - miners) {
             let handler = self.miner.spawn().unwrap();
             self.miner_handlers.push(handler);
         }
@@ -56,7 +55,7 @@ impl ConsensusEngine {
                     block,
                     difficulty: self.difficulty,
                     worker_id: i,
-                    num_workers: workers,
+                    num_workers: miners,
                 })
                 .unwrap();
         }

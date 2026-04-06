@@ -15,10 +15,11 @@ use blockchain_p2p::{
     mempool::types::mempool::Mempool,
     node::{
         adapters::{
-            consensus_engine::miner::CpuMiner, hasher::sha256_hasher::Sha256Hasher,
+            consensus_engine::{miner::CpuMiner, multiple_validator::MultipleValidator},
+            hasher::sha256_hasher::Sha256Hasher,
             storage::in_memory_storage::InMemoryStorage,
         },
-        types::{node::Node, node_event::NodeEvent},
+        types::{node::Node, node_event::NodeEvent, node_event_handler::NodeEventHandler},
     },
 };
 use crossterm::{
@@ -32,33 +33,38 @@ use crossterm::{
 fn main() {
     let (in_tx, in_rx) = channel::<String>();
     let (event_tx, event_rx) = channel::<NodeEvent>();
-    let (out_tx, _) = channel::<String>();
+    let (out_tx, out_rx) = channel::<String>();
+    let _input_handle = NodeEventHandler::new(in_rx, event_tx).run();
     let mut stdout = stdout();
     let mut w_size: WindowSize = terminal::window_size().unwrap();
     let mut prompt = String::new();
     let mut outputs: Vec<String> = vec![];
     terminal::enable_raw_mode().unwrap();
-    let mut shutdown = Arc::new(AtomicBool::from(false));
+    let shutdown = Arc::new(AtomicBool::from(false));
     let mempool = Mempool::new();
     let storage = Box::new(InMemoryStorage::new());
     let difficulty = 3;
     let hasher = Arc::new(Sha256Hasher);
-    let miner = Box::new(CpuMiner::new(hasher));
-    let validator = Box::new(x);
+    let miner = Box::new(CpuMiner::new(hasher.clone()));
+    let validator = Box::new(MultipleValidator::new());
     let consensus_engine = ConsensusEngine::new(miner, validator, difficulty);
-    let node = Node::new(
+    let _node_handle = Node::new(
         event_rx,
-        shutdown,
+        shutdown.clone(),
         out_tx,
         mempool,
         storage,
         consensus_engine,
-        hasher,
-    );
-    while !shutdown.load(Ordering::Relaxed) {
-        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown);
-        render_screen(&in_rx, &mut stdout, &w_size, &prompt, &mut outputs);
+        hasher.clone(),
+    )
+    .run();
+    while !shutdown.clone().load(Ordering::Relaxed) {
+        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown.clone());
+        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
     }
+    render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
+
+    sleep(Duration::from_secs(1));
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
 }

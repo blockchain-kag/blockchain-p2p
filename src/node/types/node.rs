@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         mpsc::{Receiver, Sender},
     },
-    thread::sleep,
+    thread::{self, JoinHandle},
 };
 
 use crate::{
@@ -46,21 +46,19 @@ impl Node {
         }
     }
 
-    pub fn run(&mut self) {
-        self.emmitter
-            .send(String::from("Node starting..."))
-            .unwrap();
-        while !self.shutdown.load(Ordering::Relaxed) {
-            while let Ok(event) = self.event_stream.try_recv() {
+    pub fn run(mut self) -> JoinHandle<()> {
+        thread::spawn(move || {
+            self.emmitter
+                .send(String::from("Node starting..."))
+                .unwrap();
+            while let Ok(event) = self.event_stream.recv() {
                 match self.manage_event(event) {
                     ControlFlow::Continue(_) => continue,
                     ControlFlow::Break(_) => break,
                 }
             }
-
-            sleep(std::time::Duration::from_millis(10));
-        }
-        self.emmitter.send(String::from("Node stoping...")).unwrap();
+            self.emmitter.send(String::from("Node stoping...")).unwrap();
+        })
     }
 
     fn manage_event(&mut self, event: NodeEvent) -> ControlFlow<()> {
@@ -83,11 +81,11 @@ impl Node {
                     self.storage.insert_block(block, &*self.hasher).unwrap();
                 }
             },
-            NodeEvent::StartMining => {
+            NodeEvent::StartMining(miners) => {
                 let txs = self.mempool.get_first_n(10);
                 let last_block = self.storage.get_tip().unwrap();
                 self.consensus_engine
-                    .start_mining(txs, last_block, self.hasher.as_ref())
+                    .start_mining(txs, last_block, self.hasher.as_ref(), miners)
                     .unwrap();
             }
             NodeEvent::PauseMining => self.consensus_engine.pause_mining().unwrap(),
