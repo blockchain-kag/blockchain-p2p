@@ -1,7 +1,7 @@
 use std::{
     sync::{Arc, mpsc::channel},
     thread::{self, sleep},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -9,7 +9,10 @@ use crate::{
         ports::hasher::Hasher,
         types::{block::Block, tx::Hash},
     },
-    consensus_engine::ports::miner::{Miner, MinerCommand, MinerEvent, MinerHandle},
+    consensus_engine::{
+        ports::miner::{Miner, MinerCommand, MinerEvent, MinerHandle},
+        types::consensus_engine::{MinerData, MinerState},
+    },
 };
 
 pub struct CpuMiner {
@@ -32,8 +35,10 @@ impl Miner for CpuMiner {
             let mut mine = false;
             let mut mined_block: Option<Block> = None;
             let mut mining_difficulty: Option<usize> = None;
-            let mut received_worker_id;
+            let mut received_worker_id = 0;
             let mut workers_amount = 1;
+            let mut miner_data = MinerData::default();
+            let mut attempts = 0;
             loop {
                 while let Ok(command) = in_rx.try_recv() {
                     match command {
@@ -46,35 +51,94 @@ impl Miner for CpuMiner {
                             mine = true;
                             received_worker_id = worker_id;
                             workers_amount = num_workers;
+                            let nonce = received_worker_id as u64;
                             mined_block = Some({
                                 let mut b = block;
-                                b.header.nonce = received_worker_id as u64;
+                                b.header.nonce = nonce;
                                 b
                             });
                             mining_difficulty = Some(difficulty);
+                            miner_data = MinerData::new(difficulty);
+                            miner_data.start_instant = Some(Instant::now());
+                            miner_data.attempts = Some(0);
+                            miner_data.current_nonce = Some(nonce);
+                            miner_data.current_block_hash = None;
                             out_tx.send(MinerEvent::Started).unwrap();
+                            miner_data.state = MinerState::Mining;
+                            out_tx
+                                .send(MinerEvent::StateUpdate {
+                                    worker_id: received_worker_id,
+                                    data: miner_data.clone(),
+                                })
+                                .unwrap();
                         }
                         MinerCommand::Pause => {
                             mine = false;
                             out_tx.send(MinerEvent::Paused).unwrap();
+                            miner_data.state = MinerState::Paused;
+                            out_tx
+                                .send(MinerEvent::StateUpdate {
+                                    worker_id: received_worker_id,
+                                    data: miner_data.clone(),
+                                })
+                                .unwrap();
                         }
                         MinerCommand::Resume => {
                             mine = true;
                             out_tx.send(MinerEvent::Resumed).unwrap();
+                            miner_data.state = MinerState::Mining;
+                            out_tx
+                                .send(MinerEvent::StateUpdate {
+                                    worker_id: received_worker_id,
+                                    data: miner_data.clone(),
+                                })
+                                .unwrap();
                         }
                         MinerCommand::Stop => {
                             mine = false;
                             mined_block = None;
                             mining_difficulty = None;
                             out_tx.send(MinerEvent::Stopped).unwrap();
+                            miner_data.state = MinerState::Stopped;
+                            out_tx
+                                .send(MinerEvent::StateUpdate {
+                                    worker_id: received_worker_id,
+                                    data: miner_data.clone(),
+                                })
+                                .unwrap();
+                        }
+                        MinerCommand::PollData => {
+                            out_tx
+                                .send(MinerEvent::StateUpdate {
+                                    worker_id: received_worker_id,
+                                    data: miner_data.clone(),
+                                })
+                                .unwrap();
                         }
                     }
                 }
 
                 if mine && let (Some(block), Some(diff)) = (&mut mined_block, mining_difficulty) {
                     let hash: Hash = block.hash(hasher.as_ref());
+                    attempts += 1;
+                    miner_data.attempts = Some(attempts);
+                    miner_data.current_nonce = Some(block.header.nonce);
+                    miner_data.current_block_hash = Some(hash);
+                    if let Some(start) = miner_data.start_instant {
+                        let duration_in_secs = start.elapsed().as_secs_f64();
+                        if duration_in_secs > 0.0 {
+                            miner_data.hash_rate = Some(attempts as f64 / duration_in_secs)
+                        }
+                    }
                     if hash.0.iter().take(diff).all(|&b| b == 0) {
                         out_tx.send(MinerEvent::Found(block.clone())).unwrap();
+                        miner_data.state = MinerState::Stopped;
+                        out_tx
+                            .send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         mined_block = None;
                         mining_difficulty = None;
                         mine = false;

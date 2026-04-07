@@ -1,6 +1,6 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::common::types::block::Block;
+use crate::{common::types::block::Block, consensus_engine::types::consensus_engine::MinerData};
 
 pub enum MinerCommand {
     Start {
@@ -12,11 +12,12 @@ pub enum MinerCommand {
     Pause,
     Resume,
     Stop,
+    PollData,
 }
 
 pub enum MinerEvent {
     Found(Block),
-    Progress { nonce: u64 },
+    StateUpdate { worker_id: u64, data: MinerData },
     Started,
     Resumed,
     Paused,
@@ -36,5 +37,5 @@ impl MinerHandle {
 }
 
 pub trait Miner: Send + Sync {
-    fn spawn(&self) -> Result<MinerHandle, String>;
+    fn spawn(&self, tx: Sender<MinerEvent>) -> Result<Sender<MinerCommand>, String>;
 }
