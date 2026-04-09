@@ -1,0 +1,34 @@
+use std::time::Instant;
+
+use crate::common::types::tx::Hash;
+
+#[derive(Debug, Clone, Default)]
+pub enum MinerState {
+    Mining,
+    Paused,
+    #[default]
+    Stopped,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MinerData {
+    pub state: MinerState,
+    pub hash_rate: Option<f64>,
+    pub difficulty: usize,
+    pub start_instant: Option<Instant>,
+
+    pub current_block_hash: Option<Hash>,
+    pub current_nonce: Option<u64>,
+    pub attempts: Option<u64>,
+
+    pub last_block_hash: Option<Hash>,
+}
+
+impl MinerData {
+    pub fn new(difficulty: usize) -> Self {
+        MinerData {
+            difficulty,
+            ..Default::default()
+        }
+    }
+}
