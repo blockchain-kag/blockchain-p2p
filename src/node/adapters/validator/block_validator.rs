@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use crate::{
     common::{
@@ -12,13 +15,13 @@ use crate::{
     validator::ports::{block_validator::BlockValidator, tx_validator::TxValidator},
 };
 
-pub struct DefaultBlockValidator<'a> {
+pub struct DefaultBlockValidator {
     tx_validator: Box<dyn TxValidator>,
-    hasher: &'a dyn Hasher,
+    hasher: Arc<dyn Hasher>,
 }
 
-impl<'a> DefaultBlockValidator<'a> {
-    pub fn new(tx_validator: Box<dyn TxValidator>, hasher: &'a dyn Hasher) -> Self {
+impl DefaultBlockValidator {
+    pub fn new(tx_validator: Box<dyn TxValidator>, hasher: Arc<dyn Hasher>) -> Self {
         Self {
             tx_validator,
             hasher,
@@ -29,7 +32,7 @@ impl<'a> DefaultBlockValidator<'a> {
 const DIFFICULTY: usize = 3;
 const BLOCK_SUBSIDY: u64 = 50;
 
-impl<'a> BlockValidator for DefaultBlockValidator<'a> {
+impl BlockValidator for DefaultBlockValidator {
     fn validate(
         &self,
         block: &Block,
@@ -37,7 +40,7 @@ impl<'a> BlockValidator for DefaultBlockValidator<'a> {
         utxo_map: &HashMap<UtxoKey, TxOutput>,
     ) -> bool {
         // prev hash
-        if block.header.prev_hash != prev_block.hash(self.hasher) {
+        if block.header.prev_hash != prev_block.hash(self.hasher.clone()) {
             return false;
         }
 
@@ -47,7 +50,7 @@ impl<'a> BlockValidator for DefaultBlockValidator<'a> {
         }
 
         // pow
-        let hash = block.hash(self.hasher);
+        let hash = block.hash(self.hasher.clone());
 
         if !hash.0.starts_with(&[0].repeat(DIFFICULTY)) {
             return false;
@@ -59,7 +62,7 @@ impl<'a> BlockValidator for DefaultBlockValidator<'a> {
         }
 
         // merkle root
-        if merkle_root(&block.txs, self.hasher) != block.header.merkle_root {
+        if merkle_root(&block.txs, self.hasher.clone()) != block.header.merkle_root {
             return false;
         }
 
@@ -123,7 +126,7 @@ impl<'a> BlockValidator for DefaultBlockValidator<'a> {
             // add outputs
             let mut output_sum = 0u64;
             for (i, output) in tx.outputs.iter().enumerate() {
-                let key = UtxoKey(tx.hash(self.hasher), i);
+                let key = UtxoKey(tx.hash(self.hasher.clone()), i);
                 output_sum = match output_sum.checked_add(output.amount) {
                     Some(v) => v,
                     None => return false,
@@ -154,8 +157,8 @@ impl<'a> BlockValidator for DefaultBlockValidator<'a> {
     }
 }
 
-fn merkle_root(txs: &[Tx], hasher: &dyn Hasher) -> Hash {
-    let mut hashes: Vec<Hash> = txs.iter().map(|tx| tx.hash(hasher)).collect();
+fn merkle_root(txs: &[Tx], hasher: Arc<dyn Hasher>) -> Hash {
+    let mut hashes: Vec<Hash> = txs.iter().map(|tx| tx.hash(hasher.clone())).collect();
 
     while hashes.len() > 1 {
         let mut next = vec![];
@@ -167,7 +170,7 @@ fn merkle_root(txs: &[Tx], hasher: &dyn Hasher) -> Hash {
             } else {
                 hashes[i] // duplicate if odd
             };
-            next.push(hash_pair(a, b, hasher));
+            next.push(hash_pair(a, b, hasher.clone()));
         }
 
         hashes = next;
@@ -176,7 +179,7 @@ fn merkle_root(txs: &[Tx], hasher: &dyn Hasher) -> Hash {
     hashes[0]
 }
 
-fn hash_pair(a: Hash, b: Hash, hasher: &dyn Hasher) -> Hash {
+fn hash_pair(a: Hash, b: Hash, hasher: Arc<dyn Hasher>) -> Hash {
     let mut data = Vec::with_capacity(a.0.len() + b.0.len());
 
     data.extend_from_slice(&a.0);

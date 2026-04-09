@@ -16,6 +16,7 @@ use blockchain_p2p::{
     mining_pool::types::mining_pool::MiningPool,
     node::{
         adapters::{
+            crypto::ed25519_crypto::Ed25519Crypto,
             hasher::sha256_hasher::Sha256Hasher,
             mining_pool::miner::CpuMiner,
             storage::in_memory_storage::InMemoryStorage,
@@ -46,15 +47,16 @@ fn main() {
     terminal::enable_raw_mode().unwrap();
     let shutdown = Arc::new(AtomicBool::from(false));
     let hasher = Arc::new(Sha256Hasher);
-    let crypto: Arc<dyn Crypto> = todo!("MISSING");
-    let tx_validator = Box::new(DefaultTxValidator::new(crypto.as_ref(), hasher.as_ref()));
+    let crypto: Arc<dyn Crypto> = Arc::new(Ed25519Crypto::new());
+    let tx_validator = Box::new(DefaultTxValidator::new(crypto.clone(), hasher.clone()));
     let mempool = Mempool::new(tx_validator);
-    let storage = Box::new(InMemoryStorage::new(hasher.as_ref()));
+    let storage = Box::new(InMemoryStorage::new(hasher.clone()));
     let difficulty = 3;
     let miner = Box::new(CpuMiner::new(hasher.clone()));
-    let block_validator = Box::new(DefaultBlockValidator::new(tx_validator, hasher.as_ref()));
+    let tx_validator = Box::new(DefaultTxValidator::new(crypto.clone(), hasher.clone()));
+    let block_validator = Box::new(DefaultBlockValidator::new(tx_validator, hasher.clone()));
     let mining_pool = MiningPool::new(miner, difficulty, vec![]);
-    mining_pool.1.run();
+    mining_pool.1.run().unwrap();
     let _node_handle = Node::new(
         event_rx,
         shutdown.clone(),

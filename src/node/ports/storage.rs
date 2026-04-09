@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::common::{
     ports::hasher::Hasher,
@@ -16,11 +16,11 @@ pub trait Storage: Send {
     fn get_block(&self, hash: &Hash) -> Option<&Block>;
     fn get_height(&self, hash: &Hash) -> Option<u64>;
     fn get_tip(&self) -> Option<&Block>;
-    fn insert_block(&mut self, block: Block, hasher: &dyn Hasher) -> Result<(), String>;
+    fn insert_block(&mut self, block: Block, hasher: Arc<dyn Hasher>) -> Result<(), String>;
 
     // UTXO
     fn get_utxo_map(&self) -> &HashMap<UtxoKey, TxOutput>;
     fn get_utxo(&self, key: &UtxoKey) -> Option<&TxOutput>;
     fn contains_utxo(&self, key: &UtxoKey) -> bool;
-    fn apply_tx(&mut self, tx: &Tx, hasher: &dyn Hasher);
+    fn apply_tx(&mut self, tx: &Tx, hasher: Arc<dyn Hasher>);
 }

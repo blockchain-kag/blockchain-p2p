@@ -1,3 +1,4 @@
+pub mod crypto;
 pub mod hasher;
 pub mod mining_pool;
 pub mod network;

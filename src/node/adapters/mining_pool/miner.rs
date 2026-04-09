@@ -116,7 +116,7 @@ impl Miner for CpuMiner {
                 }
 
                 if mine && let (Some(block), Some(diff)) = (&mut mined_block, mining_difficulty) {
-                    let hash: Hash = block.hash(hasher.as_ref());
+                    let hash: Hash = block.hash(hasher.clone());
                     attempts += 1;
                     miner_data.attempts = Some(attempts);
                     miner_data.current_nonce = Some(block.header.nonce);

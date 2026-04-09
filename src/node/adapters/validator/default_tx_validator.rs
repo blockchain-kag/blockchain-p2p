@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use crate::{
     common::{
@@ -9,18 +12,18 @@ use crate::{
     validator::ports::tx_validator::TxValidator,
 };
 
-pub struct DefaultTxValidator<'a> {
-    crypto: &'a dyn Crypto,
-    hasher: &'a dyn Hasher,
+pub struct DefaultTxValidator {
+    crypto: Arc<dyn Crypto>,
+    hasher: Arc<dyn Hasher>,
 }
 
-impl<'a> DefaultTxValidator<'a> {
-    pub fn new(crypto: &'a dyn Crypto, hasher: &'a dyn Hasher) -> Self {
+impl DefaultTxValidator {
+    pub fn new(crypto: Arc<dyn Crypto>, hasher: Arc<dyn Hasher>) -> Self {
         Self { crypto, hasher }
     }
 }
 
-impl<'a> TxValidator for DefaultTxValidator<'a> {
+impl TxValidator for DefaultTxValidator {
     fn validate(
         &self,
         tx: &Tx,
@@ -30,15 +33,15 @@ impl<'a> TxValidator for DefaultTxValidator<'a> {
         any_input_and_output(tx)
             && does_input_exists_and_is_unique(tx, utxo_set, spent_set)
             && inputs_cover_outputs(tx, utxo_set)
-            && check_transactions_signature(tx, utxo_set, self.crypto, self.hasher)
+            && check_transactions_signature(tx, utxo_set, self.crypto.clone(), self.hasher.clone())
     }
 }
 
 fn check_transactions_signature(
     tx: &Tx,
     utxo_map: &HashMap<UtxoKey, TxOutput>,
-    crypto: &dyn Crypto,
-    hasher: &dyn Hasher,
+    crypto: Arc<dyn Crypto>,
+    hasher: Arc<dyn Hasher>,
 ) -> bool {
     tx.inputs.iter().all(|input| {
         let key = UtxoKey(input.prev_tx, input.output_index);
@@ -52,7 +55,7 @@ fn check_transactions_signature(
             return false;
         }
 
-        let message = tx.hash(hasher);
+        let message = tx.hash(hasher.clone());
 
         crypto.verify(&input.pubkey, &message.0, &input.signature)
     })

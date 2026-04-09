@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     common::{
@@ -20,22 +20,22 @@ pub struct InMemoryStorage {
 }
 
 impl InMemoryStorage {
-    pub fn new(hasher: &dyn Hasher) -> Self {
-        let genesis_block = Block::new(0, Hash::zero(), 0, Vec::new(), hasher);
-        let hash = genesis_block.hash(hasher);
+    pub fn new(hasher: Arc<dyn Hasher>) -> Self {
+        let genesis_block = Block::new(0, Hash::zero(), 0, Vec::new(), hasher.as_ref());
+        let hash = genesis_block.hash(hasher.clone());
         Self {
             height: HashMap::from([(hash, 0)]),
             blocks: HashMap::from([(hash, genesis_block.clone())]),
             tip: Some(hash),
-            utxo_map: from_queue_to_utxo_map(genesis_block.txs, hasher),
+            utxo_map: from_queue_to_utxo_map(genesis_block.txs, hasher.clone()),
         }
     }
 }
 
-fn from_queue_to_utxo_map(queue: Vec<Tx>, hasher: &dyn Hasher) -> HashMap<UtxoKey, TxOutput> {
+fn from_queue_to_utxo_map(queue: Vec<Tx>, hasher: Arc<dyn Hasher>) -> HashMap<UtxoKey, TxOutput> {
     let mut map = HashMap::new();
     for tx in queue {
-        let hash = tx.hash(hasher);
+        let hash = tx.hash(hasher.clone());
         for (index, tx_output) in tx.outputs.iter().enumerate() {
             map.insert(UtxoKey(hash, index), tx_output.to_owned());
         }
@@ -56,7 +56,7 @@ impl Storage for InMemoryStorage {
         self.tip.as_ref().and_then(|h| self.blocks.get(h))
     }
 
-    fn insert_block(&mut self, block: Block, hasher: &dyn Hasher) -> Result<(), String> {
+    fn insert_block(&mut self, block: Block, hasher: Arc<dyn Hasher>) -> Result<(), String> {
         let hash = block.hash(hasher);
         if self.blocks.contains_key(&hash) {
             return Err("Block already exists".into());
@@ -101,7 +101,7 @@ impl Storage for InMemoryStorage {
         self.utxo_map.contains_key(key)
     }
 
-    fn apply_tx(&mut self, tx: &Tx, hasher: &dyn Hasher) {
+    fn apply_tx(&mut self, tx: &Tx, hasher: Arc<dyn Hasher>) {
         let tx_hash = tx.hash(hasher);
         for input in &tx.inputs {
             self.utxo_map

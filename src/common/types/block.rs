@@ -3,7 +3,10 @@ use crate::{
     common::types::tx::{Hash, Tx},
 };
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BlockHeader {
@@ -15,7 +18,7 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
-    pub fn hash(&self, hasher: &dyn Hasher) -> Hash {
+    pub fn hash(&self, hasher: Arc<dyn Hasher>) -> Hash {
         let mut data = Vec::new();
 
         data.extend_from_slice(&self.height.to_be_bytes());
@@ -89,7 +92,7 @@ impl Block {
         hashes[0]
     }
 
-    pub fn hash(&self, hasher: &dyn Hasher) -> Hash {
+    pub fn hash(&self, hasher: Arc<dyn Hasher>) -> Hash {
         self.header.hash(hasher)
     }
 }

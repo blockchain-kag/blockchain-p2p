@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::common::ports::{crypto::Crypto, hasher::Hasher};
 use serde::{Deserialize, Serialize};
 
@@ -31,14 +33,14 @@ pub struct Tx {
 }
 
 impl Tx {
-    pub fn hash(&self, hasher: &dyn Hasher) -> Hash {
+    pub fn hash(&self, hasher: Arc<dyn Hasher>) -> Hash {
         hasher.hash(&self.to_bytes())
     }
     pub fn new(inputs: Vec<TxInput>, outputs: Vec<TxOutput>) -> Self {
         Self { inputs, outputs }
     }
 
-    pub fn sign(self, hasher: &dyn Hasher, crypto: &dyn Crypto) -> Self {
+    pub fn sign(self, hasher: Arc<dyn Hasher>, crypto: Arc<dyn Crypto>) -> Self {
         let msg = self.hash(hasher).0;
         let inputs = self
             .inputs

@@ -28,7 +28,7 @@ use crate::{
 };
 
 pub struct Node {
-    event_stream: Receiver<NodeCommand>,
+    command_receiver: Receiver<NodeCommand>,
     shutdown: Arc<AtomicBool>,
     emmitter: Sender<String>,
     mempool: Mempool,
@@ -45,7 +45,7 @@ const BLOCK_MINERS: usize = 5;
 
 impl Node {
     pub fn new(
-        event_stream: Receiver<NodeCommand>,
+        command_sender: Receiver<NodeCommand>,
         shutdown: Arc<AtomicBool>,
         emmitter: Sender<String>,
         mempool: Mempool,
@@ -57,7 +57,7 @@ impl Node {
     ) -> Self {
         let wallet = Wallet::new(crypto.clone());
         Self {
-            event_stream,
+            command_receiver: command_sender,
             shutdown,
             emmitter,
             mempool,
@@ -75,7 +75,7 @@ impl Node {
             self.emmitter
                 .send(String::from("Node starting..."))
                 .unwrap();
-            while let Ok(event) = self.event_stream.recv() {
+            while let Ok(event) = self.command_receiver.recv() {
                 match self.manage_event(event) {
                     ControlFlow::Continue(_) => continue,
                     ControlFlow::Break(_) => break,
@@ -109,7 +109,7 @@ impl Node {
                             self.storage.get_utxo_map(),
                         ) {
                             self.storage
-                                .insert_block(block, self.hasher.as_ref())
+                                .insert_block(block, self.hasher.clone())
                                 .unwrap();
                             self.restart_mining();
                         };
@@ -127,7 +127,7 @@ impl Node {
                 let last_block = self.storage.get_tip().unwrap();
                 let block = Block::new(
                     last_block.header.height + 1,
-                    last_block.hash(self.hasher.as_ref()),
+                    last_block.hash(self.hasher.clone()),
                     0,
                     Vec::from(txs),
                     self.hasher.as_ref(),
@@ -173,7 +173,7 @@ impl Node {
                     inputs: unsigned_inputs,
                     outputs,
                 }
-                .sign(self.hasher.as_ref(), self.crypto.as_ref());
+                .sign(self.hasher.clone(), self.crypto.clone());
                 self.mempool.push(tx.clone(), self.storage.get_utxo_map());
                 todo!("Networking of tx && change management")
             }
@@ -192,7 +192,7 @@ impl Node {
         let txs = self.mempool.peek_first_n(MAX_TX_PER_BLOCK);
         let block = Block::new(
             prev_block.header.height,
-            prev_block.hash(self.hasher.as_ref()),
+            prev_block.hash(self.hasher.clone()),
             0,
             Vec::from(txs),
             self.hasher.as_ref(),
