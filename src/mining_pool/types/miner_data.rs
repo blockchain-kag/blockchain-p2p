@@ -10,6 +10,16 @@ pub enum MinerState {
     Stopped,
 }
 
+impl From<MinerState> for String {
+    fn from(value: MinerState) -> Self {
+        match value {
+            MinerState::Mining => "Mining".to_string(),
+            MinerState::Paused => "Paused".to_string(),
+            MinerState::Stopped => "Stopped".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct MinerData {
     pub state: MinerState,

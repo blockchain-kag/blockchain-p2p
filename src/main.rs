@@ -7,13 +7,16 @@ use std::{
         mpsc::{Receiver, Sender, channel},
     },
     thread::sleep,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use blockchain_p2p::{
-    common::ports::crypto::Crypto,
+    common::{ports::crypto::Crypto, types::tx::Hash},
     mempool::types::mempool::Mempool,
-    mining_pool::types::mining_pool::MiningPool,
+    mining_pool::types::{
+        miner_data::MinerData,
+        mining_pool::{MiningPool, MiningPoolEvent},
+    },
     node::{
         adapters::{
             crypto::ed25519_crypto::Ed25519Crypto,
@@ -36,15 +39,37 @@ use crossterm::{
 };
 
 fn main() {
+    let (tx, rx) = channel();
+    let (in_tx, out_rx, mut stdout, mut w_size, mut prompt, mut outputs, shutdown) = build_node(tx);
+    terminal::enable_raw_mode().unwrap();
+    while !shutdown.clone().load(Ordering::Relaxed) {
+        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown.clone());
+        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs, &rx);
+    }
+    sleep(Duration::from_secs(1));
+    terminal::disable_raw_mode().unwrap();
+    execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
+}
+
+fn build_node(
+    mining_pool_subscriber: Sender<MiningPoolEvent>,
+) -> (
+    Sender<String>,
+    Receiver<String>,
+    Stdout,
+    WindowSize,
+    String,
+    Vec<String>,
+    Arc<AtomicBool>,
+) {
     let (in_tx, in_rx) = channel::<String>();
     let (event_tx, event_rx) = channel::<NodeCommand>();
     let (out_tx, out_rx) = channel::<String>();
-    let _input_handle = NodeCommandHandler::new(in_rx, event_tx, out_tx.clone()).run();
-    let mut stdout = stdout();
-    let mut w_size: WindowSize = terminal::window_size().unwrap();
-    let mut prompt = String::new();
-    let mut outputs: Vec<String> = vec![];
-    terminal::enable_raw_mode().unwrap();
+    let _ = NodeCommandHandler::new(in_rx, event_tx, out_tx.clone()).run();
+    let stdout = stdout();
+    let w_size: WindowSize = terminal::window_size().unwrap();
+    let prompt = String::new();
+    let outputs: Vec<String> = vec![];
     let shutdown = Arc::new(AtomicBool::from(false));
     let hasher = Arc::new(Sha256Hasher);
     let crypto: Arc<dyn Crypto> = Arc::new(Ed25519Crypto::new());
@@ -55,9 +80,9 @@ fn main() {
     let miner = Box::new(CpuMiner::new(hasher.clone()));
     let tx_validator = Box::new(DefaultTxValidator::new(crypto.clone(), hasher.clone()));
     let block_validator = Box::new(DefaultBlockValidator::new(tx_validator, hasher.clone()));
-    let mining_pool = MiningPool::new(miner, difficulty, vec![]);
+    let mining_pool = MiningPool::new(miner, difficulty, vec![mining_pool_subscriber]);
     mining_pool.1.run().unwrap();
-    let _node_handle = Node::new(
+    let _ = Node::new(
         event_rx,
         shutdown.clone(),
         out_tx,
@@ -69,14 +94,7 @@ fn main() {
         crypto,
     )
     .run();
-    while !shutdown.clone().load(Ordering::Relaxed) {
-        handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown.clone());
-        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
-    }
-    render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs);
-    sleep(Duration::from_secs(1));
-    terminal::disable_raw_mode().unwrap();
-    execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
+    (in_tx, out_rx, stdout, w_size, prompt, outputs, shutdown)
 }
 
 fn handle_user_interaction(
@@ -130,6 +148,7 @@ fn render_screen(
     w_size: &WindowSize,
     prompt: &str,
     outputs: &mut Vec<String>,
+    miner_pool_receiver: &Receiver<MiningPoolEvent>,
 ) {
     queue!(stdout, Clear(ClearType::All)).unwrap();
 
@@ -146,7 +165,7 @@ fn render_screen(
     let main_section_inner_top = bd_top + 3;
     let main_section_inner_bottom = bd_bottom - 2;
 
-    let screen_division = w_size.columns / 2;
+    let screen_division = w_size.columns / 2 - 20;
 
     outer_box_rendering(
         stdout,
@@ -167,21 +186,41 @@ fn render_screen(
         bd_left,
         content_padding,
     );
+
+    let mut data = MinerData::default();
+
+    if let Ok(event) = miner_pool_receiver.try_recv() {
+        match event {
+            MiningPoolEvent::Found(block) => {}
+            MiningPoolEvent::StateUpdate {
+                worker_id,
+                data: received_data,
+            } => data = received_data,
+            MiningPoolEvent::Error(err) => {}
+            _ => {}
+        }
+    };
+
     let sections = vec![
         vec![
-            String::from("Status: "),
-            String::from("Hash rate: "),
-            String::from("Difficulty: "),
+            format!("State: {}", String::from(data.state)),
+            format!("Hash rate: {}", data.hash_rate.unwrap_or(0.0)),
+            format!("Difficulty: {}", data.difficulty),
         ],
         vec![
-            String::from("Block: "),
-            String::from("Nonce: "),
-            String::from("Attempts: "),
+            format!("Block: {}", data.current_block_hash.unwrap_or(Hash::zero())),
+            format!("Nonce: {}", data.current_nonce.unwrap_or(0)),
+            format!("Attempts: {}", data.attempts.unwrap_or(0)),
         ],
         vec![
-            String::from("Last block: "),
-            String::from("Hash: "),
-            String::from("Time: "),
+            format!(
+                "Last block: {}",
+                data.last_block_hash.unwrap_or(Hash::zero())
+            ),
+            format!(
+                "Time: {:?}",
+                data.start_instant.unwrap_or(Instant::now()).elapsed()
+            ),
         ],
     ];
 

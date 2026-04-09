@@ -1,10 +1,22 @@
-use std::sync::Arc;
+use std::{
+    fmt::{Display, Formatter, Result},
+    sync::Arc,
+};
 
 use crate::common::ports::{crypto::Crypto, hasher::Hasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Hash(pub [u8; 32]);
+
+impl Display for Hash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
+    }
+}
 
 impl Hash {
     pub fn zero() -> Hash {
