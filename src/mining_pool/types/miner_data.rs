@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::common::types::tx::Hash;
 
@@ -25,7 +25,7 @@ pub struct MinerData {
     pub state: MinerState,
     pub hash_rate: Option<f64>,
     pub difficulty: usize,
-    pub start_instant: Option<Instant>,
+    pub elapsed: Duration,
 
     pub current_block_hash: Option<Hash>,
     pub current_nonce: Option<u64>,

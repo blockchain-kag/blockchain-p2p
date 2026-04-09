@@ -7,6 +7,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tokio::time::error::Elapsed;
+
 use crate::{
     common::{
         ports::hasher::Hasher,
@@ -34,6 +36,8 @@ impl Miner for CpuMiner {
         let hasher = self.hasher.clone();
 
         thread::spawn(move || {
+            let mut start_instant = Some(Instant::now());
+            let mut accumulated_mining_time = Duration::ZERO;
             let mut mine = false;
             let mut mined_block: Option<Block> = None;
             let mut mining_difficulty: Option<usize> = None;
@@ -59,9 +63,11 @@ impl Miner for CpuMiner {
                                 b.header.nonce = nonce;
                                 b
                             });
+                            start_instant = Some(Instant::now());
+                            accumulated_mining_time = Duration::ZERO;
                             mining_difficulty = Some(difficulty);
                             miner_data = MinerData::new(difficulty);
-                            miner_data.start_instant = Some(Instant::now());
+                            miner_data.elapsed = accumulated_mining_time;
                             miner_data.attempts = Some(0);
                             miner_data.current_nonce = Some(nonce);
                             miner_data.current_block_hash = None;
@@ -76,6 +82,10 @@ impl Miner for CpuMiner {
                         MinerCommand::Pause => {
                             mine = false;
                             tx.send(MinerEvent::Paused).unwrap();
+                            if let Some(s) = start_instant {
+                                accumulated_mining_time += s.elapsed();
+                            }
+                            start_instant = None;
                             miner_data.state = MinerState::Paused;
                             tx.send(MinerEvent::StateUpdate {
                                 worker_id: received_worker_id,
@@ -87,6 +97,7 @@ impl Miner for CpuMiner {
                             mine = true;
                             tx.send(MinerEvent::Resumed).unwrap();
                             miner_data.state = MinerState::Mining;
+                            start_instant = Some(Instant::now());
                             tx.send(MinerEvent::StateUpdate {
                                 worker_id: received_worker_id,
                                 data: miner_data.clone(),
@@ -99,13 +110,23 @@ impl Miner for CpuMiner {
                             mining_difficulty = None;
                             tx.send(MinerEvent::Stopped).unwrap();
                             miner_data.state = MinerState::Stopped;
+                            if let Some(s) = start_instant {
+                                accumulated_mining_time += s.elapsed();
+                            }
+                            start_instant = None;
                             tx.send(MinerEvent::StateUpdate {
                                 worker_id: received_worker_id,
                                 data: miner_data.clone(),
                             })
                             .unwrap();
+                            miner_data = MinerData::default();
                         }
                         MinerCommand::PollData => {
+                            if let Some(s) = start_instant {
+                                miner_data.elapsed = accumulated_mining_time + s.elapsed();
+                            } else {
+                                miner_data.elapsed = accumulated_mining_time;
+                            }
                             tx.send(MinerEvent::StateUpdate {
                                 worker_id: received_worker_id,
                                 data: miner_data.clone(),
@@ -119,14 +140,22 @@ impl Miner for CpuMiner {
                     let hash: Hash = block.hash(hasher.clone());
                     attempts += 1;
                     miner_data.attempts = Some(attempts);
+                    if let Some(s) = start_instant {
+                        miner_data.elapsed = accumulated_mining_time + s.elapsed();
+                    } else {
+                        miner_data.elapsed = accumulated_mining_time;
+                    }
                     miner_data.current_nonce = Some(block.header.nonce);
                     miner_data.current_block_hash = Some(hash);
-                    if let Some(start) = miner_data.start_instant {
-                        let duration_in_secs = start.elapsed().as_secs_f64();
-                        if duration_in_secs > 0.0 {
-                            miner_data.hash_rate = Some(attempts as f64 / duration_in_secs)
-                        }
+                    let duration_in_secs = accumulated_mining_time.as_secs_f64();
+                    if duration_in_secs > 0.0 {
+                        miner_data.hash_rate = Some(attempts as f64 / duration_in_secs)
                     }
+                    tx.send(MinerEvent::StateUpdate {
+                        worker_id: received_worker_id,
+                        data: miner_data.clone(),
+                    })
+                    .unwrap();
                     if hash.0.iter().take(diff).all(|&b| b == 0) {
                         tx.send(MinerEvent::Found(block.clone())).unwrap();
                         miner_data.state = MinerState::Stopped;

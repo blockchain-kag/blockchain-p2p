@@ -7,7 +7,7 @@ use std::{
         mpsc::{Receiver, Sender, channel},
     },
     thread::sleep,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use blockchain_p2p::{
@@ -42,11 +42,26 @@ fn main() {
     let (tx, rx) = channel();
     let (in_tx, out_rx, mut stdout, mut w_size, mut prompt, mut outputs, shutdown) = build_node(tx);
     terminal::enable_raw_mode().unwrap();
+    let mut data = MinerData::default();
     while !shutdown.clone().load(Ordering::Relaxed) {
         handle_user_interaction(&in_tx, &mut w_size, &mut prompt, shutdown.clone());
-        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs, &rx);
+        render_screen(&out_rx, &mut stdout, &w_size, &prompt, &mut outputs, &data);
+        if let Ok(event) = rx.try_recv() {
+            match event {
+                MiningPoolEvent::Found(block) => {}
+                MiningPoolEvent::StateUpdate {
+                    worker_id,
+                    data: received_data,
+                } => data = received_data,
+                MiningPoolEvent::Error(err) => {
+                    execute!(stdout, Print(format!("Error: {}", err))).unwrap();
+                    sleep(Duration::from_secs(5));
+                }
+                _ => {}
+            }
+        };
     }
-    sleep(Duration::from_secs(1));
+    sleep(Duration::from_millis(16));
     terminal::disable_raw_mode().unwrap();
     execute!(stdout, terminal::Clear(ClearType::All), MoveTo(0, 0)).unwrap();
 }
@@ -76,7 +91,7 @@ fn build_node(
     let tx_validator = Box::new(DefaultTxValidator::new(crypto.clone(), hasher.clone()));
     let mempool = Mempool::new(tx_validator);
     let storage = Box::new(InMemoryStorage::new(hasher.clone()));
-    let difficulty = 3;
+    let difficulty = 1;
     let miner = Box::new(CpuMiner::new(hasher.clone()));
     let tx_validator = Box::new(DefaultTxValidator::new(crypto.clone(), hasher.clone()));
     let block_validator = Box::new(DefaultBlockValidator::new(tx_validator, hasher.clone()));
@@ -148,7 +163,7 @@ fn render_screen(
     w_size: &WindowSize,
     prompt: &str,
     outputs: &mut Vec<String>,
-    miner_pool_receiver: &Receiver<MiningPoolEvent>,
+    data: &MinerData,
 ) {
     queue!(stdout, Clear(ClearType::All)).unwrap();
 
@@ -187,23 +202,9 @@ fn render_screen(
         content_padding,
     );
 
-    let mut data = MinerData::default();
-
-    if let Ok(event) = miner_pool_receiver.try_recv() {
-        match event {
-            MiningPoolEvent::Found(block) => {}
-            MiningPoolEvent::StateUpdate {
-                worker_id,
-                data: received_data,
-            } => data = received_data,
-            MiningPoolEvent::Error(err) => {}
-            _ => {}
-        }
-    };
-
     let sections = vec![
         vec![
-            format!("State: {}", String::from(data.state)),
+            format!("State: {}", String::from(data.state.clone())),
             format!("Hash rate: {}", data.hash_rate.unwrap_or(0.0)),
             format!("Difficulty: {}", data.difficulty),
         ],
@@ -217,10 +218,7 @@ fn render_screen(
                 "Last block: {}",
                 data.last_block_hash.unwrap_or(Hash::zero())
             ),
-            format!(
-                "Time: {:?}",
-                data.start_instant.unwrap_or(Instant::now()).elapsed()
-            ),
+            format!("Time: {:?}", data.elapsed),
         ],
     ];
 
