@@ -13,16 +13,18 @@ use crate::{
     common::{
         ports::{crypto::Crypto, hasher::Hasher},
         types::{
+            block::Block,
             tx::{Tx, TxInput, TxOutput},
             wallet::Wallet,
         },
     },
-    consensus_engine::types::consensus_engine::ConsensusEngine,
     mempool::types::mempool::Mempool,
+    mining_pool::types::mining_pool::MiningPoolCommand,
     node::{
         ports::storage::{Storage, UtxoKey},
         types::node_command::NodeCommand,
     },
+    validator::ports::block_validator::BlockValidator,
 };
 
 pub struct Node {
@@ -31,7 +33,8 @@ pub struct Node {
     emmitter: Sender<String>,
     mempool: Mempool,
     storage: Box<dyn Storage>,
-    consensus_engine: ConsensusEngine,
+    mining_pool_sender: Sender<MiningPoolCommand>,
+    block_validator: Box<dyn BlockValidator>,
     hasher: Arc<dyn Hasher>,
     crypto: Arc<dyn Crypto>,
     wallet: Wallet,
@@ -47,7 +50,8 @@ impl Node {
         emmitter: Sender<String>,
         mempool: Mempool,
         storage: Box<dyn Storage>,
-        consensus_engine: ConsensusEngine,
+        mining_pool_sender: Sender<MiningPoolCommand>,
+        block_validator: Box<dyn BlockValidator>,
         hasher: Arc<dyn Hasher>,
         crypto: Arc<dyn Crypto>,
     ) -> Self {
@@ -58,7 +62,8 @@ impl Node {
             emmitter,
             mempool,
             storage,
-            consensus_engine,
+            mining_pool_sender,
+            block_validator,
             hasher,
             crypto,
             wallet,
@@ -84,22 +89,25 @@ impl Node {
         let utxo_map = self.storage.get_utxo_map();
         match event {
             NodeCommand::Help => {
-                let comment: String = todo!("Write help comment");
-                self.emmitter.send(String::from(comment)).unwrap();
+                let comment: String = "Missing command".to_string();
+                self.emmitter.send(comment).unwrap();
             }
             NodeCommand::Quit => {
                 self.shutdown.store(true, Ordering::Relaxed);
                 return ControlFlow::Break(());
             }
             NodeCommand::SaveTransaction(tx) => {
-                self.mempool
-                    .push(tx, utxo_map, self.crypto.as_ref(), self.hasher.as_ref());
+                self.mempool.push(tx, utxo_map);
                 todo!("Do network broadcast of txs")
             }
             NodeCommand::SaveBlock(block) => {
                 match self.storage.get_tip() {
                     Some(prev_block) => {
-                        if self.consensus_engine.is_block_valid(prev_block, &block) {
+                        if self.block_validator.validate(
+                            prev_block,
+                            &block,
+                            self.storage.get_utxo_map(),
+                        ) {
                             self.storage
                                 .insert_block(block, self.hasher.as_ref())
                                 .unwrap();
@@ -117,13 +125,32 @@ impl Node {
             NodeCommand::StartMining(miners) => {
                 let txs = self.mempool.peek_first_n(MAX_TX_PER_BLOCK);
                 let last_block = self.storage.get_tip().unwrap();
-                self.consensus_engine
-                    .start_mining(txs, last_block, self.hasher.as_ref(), miners)
+                let block = Block::new(
+                    last_block.header.height + 1,
+                    last_block.hash(self.hasher.as_ref()),
+                    0,
+                    Vec::from(txs),
+                    self.hasher.as_ref(),
+                );
+                self.mining_pool_sender
+                    .send(MiningPoolCommand::StartMining(block, miners))
                     .unwrap();
             }
-            NodeCommand::PauseMining => self.consensus_engine.pause_mining().unwrap(),
-            NodeCommand::ResumeMining => self.consensus_engine.resume_mining().unwrap(),
-            NodeCommand::StopMining => self.consensus_engine.stop_mining().unwrap(),
+            NodeCommand::PauseMining => {
+                self.mining_pool_sender
+                    .send(MiningPoolCommand::PauseMining)
+                    .unwrap();
+            }
+            NodeCommand::ResumeMining => {
+                self.mining_pool_sender
+                    .send(MiningPoolCommand::ResumeMining)
+                    .unwrap();
+            }
+            NodeCommand::StopMining => {
+                self.mining_pool_sender
+                    .send(MiningPoolCommand::StopMining)
+                    .unwrap();
+            }
             NodeCommand::Transfer(transfers, fee) => {
                 let total_output: u64 = transfers.iter().map(|(_, amt)| amt).sum();
                 let (unsigned_inputs, total_input) =
@@ -147,12 +174,7 @@ impl Node {
                     outputs,
                 }
                 .sign(self.hasher.as_ref(), self.crypto.as_ref());
-                self.mempool.push(
-                    tx.clone(),
-                    self.storage.get_utxo_map(),
-                    self.crypto.as_ref(),
-                    self.hasher.as_ref(),
-                );
+                self.mempool.push(tx.clone(), self.storage.get_utxo_map());
                 todo!("Networking of tx && change management")
             }
             NodeCommand::StartSyncing => {
@@ -163,14 +185,20 @@ impl Node {
     }
 
     fn restart_mining(&mut self) {
-        self.consensus_engine.stop_mining().unwrap();
-        self.consensus_engine
-            .start_mining(
-                self.mempool.peek_first_n(MAX_TX_PER_BLOCK),
-                self.storage.get_tip().unwrap(),
-                self.hasher.as_ref(),
-                BLOCK_MINERS,
-            )
+        self.mining_pool_sender
+            .send(MiningPoolCommand::StopMining)
+            .unwrap();
+        let prev_block = self.storage.get_tip().unwrap();
+        let txs = self.mempool.peek_first_n(MAX_TX_PER_BLOCK);
+        let block = Block::new(
+            prev_block.header.height,
+            prev_block.hash(self.hasher.as_ref()),
+            0,
+            Vec::from(txs),
+            self.hasher.as_ref(),
+        );
+        self.mining_pool_sender
+            .send(MiningPoolCommand::StartMining(block, BLOCK_MINERS))
             .unwrap();
     }
 }

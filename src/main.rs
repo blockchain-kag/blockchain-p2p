@@ -11,13 +11,17 @@ use std::{
 };
 
 use blockchain_p2p::{
-    consensus_engine::types::consensus_engine::ConsensusEngine,
+    common::ports::crypto::Crypto,
     mempool::types::mempool::Mempool,
+    mining_pool::types::mining_pool::MiningPool,
     node::{
         adapters::{
-            consensus_engine::{miner::CpuMiner, multiple_validator::MultipleValidator},
             hasher::sha256_hasher::Sha256Hasher,
+            mining_pool::miner::CpuMiner,
             storage::in_memory_storage::InMemoryStorage,
+            validator::{
+                block_validator::DefaultBlockValidator, default_tx_validator::DefaultTxValidator,
+            },
         },
         types::{node::Node, node_command::NodeCommand, node_command_handler::NodeCommandHandler},
     },
@@ -41,22 +45,26 @@ fn main() {
     let mut outputs: Vec<String> = vec![];
     terminal::enable_raw_mode().unwrap();
     let shutdown = Arc::new(AtomicBool::from(false));
-    let mempool = Mempool::new();
     let hasher = Arc::new(Sha256Hasher);
+    let crypto: Arc<dyn Crypto> = todo!("MISSING");
+    let tx_validator = Box::new(DefaultTxValidator::new(crypto.as_ref(), hasher.as_ref()));
+    let mempool = Mempool::new(tx_validator);
     let storage = Box::new(InMemoryStorage::new(hasher.as_ref()));
     let difficulty = 3;
     let miner = Box::new(CpuMiner::new(hasher.clone()));
-    let validator = Box::new(MultipleValidator::new());
-    let consensus_engine = ConsensusEngine::new(miner, validator, difficulty);
+    let block_validator = Box::new(DefaultBlockValidator::new(tx_validator, hasher.as_ref()));
+    let mining_pool = MiningPool::new(miner, difficulty, vec![]);
+    mining_pool.1.run();
     let _node_handle = Node::new(
         event_rx,
         shutdown.clone(),
         out_tx,
         mempool,
         storage,
-        consensus_engine,
+        mining_pool.0,
+        block_validator,
         hasher.clone(),
-        "",
+        crypto,
     )
     .run();
     while !shutdown.clone().load(Ordering::Relaxed) {

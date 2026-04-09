@@ -2,6 +2,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use crate::{common::types::block::Block, mining_pool::types::miner_data::MinerData};
 
+#[derive(Clone)]
 pub enum MinerCommand {
     Start {
         block: Block,

@@ -9,17 +9,22 @@ use crate::{
         },
     },
     node::ports::storage::UtxoKey,
+    validator::ports::tx_validator::TxValidator,
 };
 
-#[derive(Default)]
 pub struct Mempool {
     transactions: VecDeque<Tx>,
     spent: HashSet<UtxoKey>,
+    tx_validator: Box<dyn TxValidator>,
 }
 
 impl Mempool {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(tx_validator: Box<dyn TxValidator>) -> Self {
+        Self {
+            transactions: VecDeque::new(),
+            spent: HashSet::new(),
+            tx_validator,
+        }
     }
 
     pub fn peek_first_n(&self, n: usize) -> VecDeque<Tx> {
@@ -39,14 +44,8 @@ impl Mempool {
         }
     }
 
-    pub fn push(
-        &mut self,
-        tx: Tx,
-        utxo_map: &HashMap<UtxoKey, TxOutput>,
-        crypto: &dyn Crypto,
-        hasher: &dyn Hasher,
-    ) {
-        if !self.is_tx_valid(&tx, utxo_map, crypto, hasher) {
+    pub fn push(&mut self, tx: Tx, utxo_set: &HashMap<UtxoKey, TxOutput>) {
+        if !self.tx_validator.validate(&tx, utxo_set, &self.spent) {
             return;
         }
 
@@ -58,15 +57,9 @@ impl Mempool {
         self.transactions.push_back(tx);
     }
 
-    pub fn push_n(
-        &mut self,
-        txs: Vec<Tx>,
-        utxo_map: &HashMap<UtxoKey, TxOutput>,
-        crypto: &dyn Crypto,
-        hasher: &dyn Hasher,
-    ) {
+    pub fn push_n(&mut self, txs: Vec<Tx>, utxo_map: &HashMap<UtxoKey, TxOutput>) {
         for tx in txs {
-            self.push(tx, utxo_map, crypto, hasher)
+            self.push(tx, utxo_map)
         }
     }
 

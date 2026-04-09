@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use crate::{
     common::{
@@ -21,7 +21,7 @@ pub struct InMemoryStorage {
 
 impl InMemoryStorage {
     pub fn new(hasher: &dyn Hasher) -> Self {
-        let genesis_block = Block::new(0, Hash::zero(), 0, VecDeque::new(), hasher);
+        let genesis_block = Block::new(0, Hash::zero(), 0, Vec::new(), hasher);
         let hash = genesis_block.hash(hasher);
         Self {
             height: HashMap::from([(hash, 0)]),
@@ -32,7 +32,7 @@ impl InMemoryStorage {
     }
 }
 
-fn from_queue_to_utxo_map(queue: VecDeque<Tx>, hasher: &dyn Hasher) -> HashMap<UtxoKey, TxOutput> {
+fn from_queue_to_utxo_map(queue: Vec<Tx>, hasher: &dyn Hasher) -> HashMap<UtxoKey, TxOutput> {
     let mut map = HashMap::new();
     for tx in queue {
         let hash = tx.hash(hasher);

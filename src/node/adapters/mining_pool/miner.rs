@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, mpsc::channel},
+    sync::{
+        Arc,
+        mpsc::{Sender, channel},
+    },
     thread::{self, sleep},
     time::{Duration, Instant},
 };
@@ -9,9 +12,9 @@ use crate::{
         ports::hasher::Hasher,
         types::{block::Block, tx::Hash},
     },
-    consensus_engine::{
-        ports::miner::{Miner, MinerCommand, MinerEvent, MinerHandle},
-        types::consensus_engine::{MinerData, MinerState},
+    mining_pool::{
+        ports::miner::{Miner, MinerCommand, MinerEvent},
+        types::miner_data::{MinerData, MinerState},
     },
 };
 
@@ -26,9 +29,8 @@ impl CpuMiner {
 }
 
 impl Miner for CpuMiner {
-    fn spawn(&self) -> Result<MinerHandle, String> {
+    fn spawn(&self, tx: Sender<MinerEvent>) -> Result<Sender<MinerCommand>, String> {
         let (in_tx, in_rx) = channel::<MinerCommand>();
-        let (out_tx, out_rx) = channel::<MinerEvent>();
         let hasher = self.hasher.clone();
 
         thread::spawn(move || {
@@ -49,9 +51,9 @@ impl Miner for CpuMiner {
                             num_workers,
                         } => {
                             mine = true;
-                            received_worker_id = worker_id;
+                            received_worker_id = worker_id as u64;
                             workers_amount = num_workers;
-                            let nonce = received_worker_id as u64;
+                            let nonce = received_worker_id;
                             mined_block = Some({
                                 let mut b = block;
                                 b.header.nonce = nonce;
@@ -63,57 +65,52 @@ impl Miner for CpuMiner {
                             miner_data.attempts = Some(0);
                             miner_data.current_nonce = Some(nonce);
                             miner_data.current_block_hash = None;
-                            out_tx.send(MinerEvent::Started).unwrap();
+                            tx.send(MinerEvent::Started).unwrap();
                             miner_data.state = MinerState::Mining;
-                            out_tx
-                                .send(MinerEvent::StateUpdate {
-                                    worker_id: received_worker_id,
-                                    data: miner_data.clone(),
-                                })
-                                .unwrap();
+                            tx.send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         }
                         MinerCommand::Pause => {
                             mine = false;
-                            out_tx.send(MinerEvent::Paused).unwrap();
+                            tx.send(MinerEvent::Paused).unwrap();
                             miner_data.state = MinerState::Paused;
-                            out_tx
-                                .send(MinerEvent::StateUpdate {
-                                    worker_id: received_worker_id,
-                                    data: miner_data.clone(),
-                                })
-                                .unwrap();
+                            tx.send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         }
                         MinerCommand::Resume => {
                             mine = true;
-                            out_tx.send(MinerEvent::Resumed).unwrap();
+                            tx.send(MinerEvent::Resumed).unwrap();
                             miner_data.state = MinerState::Mining;
-                            out_tx
-                                .send(MinerEvent::StateUpdate {
-                                    worker_id: received_worker_id,
-                                    data: miner_data.clone(),
-                                })
-                                .unwrap();
+                            tx.send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         }
                         MinerCommand::Stop => {
                             mine = false;
                             mined_block = None;
                             mining_difficulty = None;
-                            out_tx.send(MinerEvent::Stopped).unwrap();
+                            tx.send(MinerEvent::Stopped).unwrap();
                             miner_data.state = MinerState::Stopped;
-                            out_tx
-                                .send(MinerEvent::StateUpdate {
-                                    worker_id: received_worker_id,
-                                    data: miner_data.clone(),
-                                })
-                                .unwrap();
+                            tx.send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         }
                         MinerCommand::PollData => {
-                            out_tx
-                                .send(MinerEvent::StateUpdate {
-                                    worker_id: received_worker_id,
-                                    data: miner_data.clone(),
-                                })
-                                .unwrap();
+                            tx.send(MinerEvent::StateUpdate {
+                                worker_id: received_worker_id,
+                                data: miner_data.clone(),
+                            })
+                            .unwrap();
                         }
                     }
                 }
@@ -131,14 +128,13 @@ impl Miner for CpuMiner {
                         }
                     }
                     if hash.0.iter().take(diff).all(|&b| b == 0) {
-                        out_tx.send(MinerEvent::Found(block.clone())).unwrap();
+                        tx.send(MinerEvent::Found(block.clone())).unwrap();
                         miner_data.state = MinerState::Stopped;
-                        out_tx
-                            .send(MinerEvent::StateUpdate {
-                                worker_id: received_worker_id,
-                                data: miner_data.clone(),
-                            })
-                            .unwrap();
+                        tx.send(MinerEvent::StateUpdate {
+                            worker_id: received_worker_id,
+                            data: miner_data.clone(),
+                        })
+                        .unwrap();
                         mined_block = None;
                         mining_difficulty = None;
                         mine = false;
@@ -152,6 +148,6 @@ impl Miner for CpuMiner {
             }
         });
 
-        Ok(MinerHandle::new(in_tx, out_rx))
+        Ok(in_tx)
     }
 }

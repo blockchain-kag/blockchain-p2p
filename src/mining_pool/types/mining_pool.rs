@@ -7,6 +7,7 @@ use crate::mining_pool::ports::miner::{Miner, MinerCommand, MinerEvent};
 use crate::mining_pool::types::miner_data::MinerData;
 use crate::mining_pool::types::mining_pool_error::MiningPoolError;
 
+#[derive(Clone)]
 pub enum MiningPoolEvent {
     Found(Block),
     StateUpdate { worker_id: u64, data: MinerData },
@@ -64,10 +65,10 @@ impl MiningPool {
                 while let Ok(command) = self.pool_command_receiver.try_recv() {
                     manage_command(
                         command,
-                        &self.worker_senders,
+                        &mut self.worker_senders,
                         &self.pool_event_sender,
                         self.difficulty,
-                        &self.miner,
+                        self.miner.as_ref(),
                     )
                     .unwrap();
                 }
@@ -78,16 +79,19 @@ impl MiningPool {
     }
 }
 
-fn broadcast<T>(event: T, pool_event_senders: &Vec<Sender<T>>) -> Result<(), MiningPoolError> {
+fn broadcast<T: Clone>(
+    event: T,
+    pool_event_senders: &Vec<Sender<T>>,
+) -> Result<(), MiningPoolError> {
     for sender in pool_event_senders {
-        sender.send(event)?;
+        sender.send(event.clone())?;
     }
     Ok(())
 }
 
 fn manage_command(
     command: MiningPoolCommand,
-    worker_senders: &Vec<Sender<MinerCommand>>,
+    worker_senders: &mut Vec<Sender<MinerCommand>>,
     new_worker_sender: &Sender<MinerEvent>,
     difficulty: usize,
     miner_spawn: &dyn Miner,

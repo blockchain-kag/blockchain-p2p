@@ -1,2 +1,2 @@
 pub mod block_validator;
-pub mod miner;
+pub mod tx_validator;
